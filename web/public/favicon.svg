@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10284A"/><stop offset="1" stop-color="#06111F"/></linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FE3F7"/><stop offset="1" stop-color="#2FA7D6"/></linearGradient>
+    <clipPath id="drop"><path d="M128 30 C150 62 190 104 190 150 A62 62 0 0 1 66 150 C66 104 106 62 128 30 Z"/></clipPath>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".35" stop-color="#7FE3F7"/><stop offset="1" stop-color="#7FE3F7" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <g clip-path="url(#drop)">
+    <rect x="60" y="132" width="140" height="90" fill="#1B3A5C"/>
+    <path d="M60 140 Q100 132 128 140 T196 138 L196 156 Q160 164 128 156 T60 158 Z" fill="#C4622D"/>
+    <path d="M60 158 Q96 166 128 158 T196 156 L196 176 Q160 168 128 176 T60 178 Z" fill="#E2B04C" opacity=".9"/>
+    <path d="M60 178 Q96 170 128 178 T196 176 L196 200 Q160 208 128 200 T60 204 Z" fill="#1FA3D6"/>
+    <path d="M60 204 Q100 210 128 202 T196 200 L196 222 L60 222 Z" fill="#14304F"/>
+  </g>
+  <path d="M128 30 C150 62 190 104 190 150 A62 62 0 0 1 66 150 C66 104 106 62 128 30 Z" fill="none" stroke="url(#rim)" stroke-width="9" stroke-linejoin="round"/>
+  <line x1="62" y1="136" x2="194" y2="136" stroke="#E8F6FB" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+  <line x1="128" y1="96" x2="128" y2="186" stroke="#E8F6FB" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 0"/>
+  <circle cx="128" cy="189" r="18" fill="url(#glow)"/>
+  <circle cx="128" cy="189" r="6.5" fill="#FFFFFF"/>
+  <path d="M196 44 L201 58 L215 63 L201 68 L196 82 L191 68 L177 63 L191 58 Z" fill="#7FE3F7"/>
+</svg>

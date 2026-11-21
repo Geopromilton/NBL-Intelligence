@@ -1,0 +1,12 @@
+.venv/
+state/
+web/node_modules
+web/dist/
+web-view/
+build/
+dist/
+__pycache__/
+*.pyc
+_to_delete/
+sites/*/twin/
+.pytest_cache/
