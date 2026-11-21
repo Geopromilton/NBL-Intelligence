@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useApp } from "../lib/app";
-import { Card, Loading } from "../components/Bits";
-import { I } from "../components/Icons";
+import { Art, Card, Hero, Loading } from "../components/Bits";
+import { Glyph } from "../components/Glyphs";
 
 export default function Settings() {
   const { toast, refreshHealth } = useApp();
@@ -29,9 +29,9 @@ export default function Settings() {
   const ai = s.ai;
   return (
     <div className="page">
-      <div className="page-head"><div><div className="eyebrow">System</div><h1>Settings</h1><p>Saved in {s.settings_file}. Updates to NBL-Intelligence never overwrite this file.</p></div></div>
-      <Card title="Updates" sub={upd ? `Version ${upd.current}${upd.mode === "installed" ? " · installed app" : " · source folder"}` : "Version and updates"} style={{ marginBottom: 16 }}
-        right={<button className="btn" onClick={checkUpd} disabled={!!updBusy}>{updBusy === "check" ? <div className="spinner" /> : <I.refresh size={15} />}Check for updates</button>}>
+      <Hero art="banner-settings" icon="gear" eyebrow="System" title="Settings" sub={<>Saved in {s.settings_file}. Updates to NBL-Intelligence never overwrite this file.</>} />
+      <Card icon="sync" tone="green" glow title="Updates" sub={upd ? `Version ${upd.current}${upd.mode === "installed" ? " · installed app" : " · source folder"}` : "Version and updates"} style={{ marginBottom: 16 }}
+        right={<button className="btn" onClick={checkUpd} disabled={!!updBusy}>{updBusy === "check" ? <div className="spinner" /> : <Glyph name="sync" size={15} />}Check for updates</button>}>
         {!upd && <div className="small muted">Click "Check for updates". Updates replace the program only; sites, runs, decisions, reports and settings are never touched.</div>}
         {upd && <>
           <div className="row wrap" style={{ gap: 10 }}>
@@ -42,14 +42,15 @@ export default function Settings() {
           {upd.notes && upd.available && <div className="note small" style={{ marginTop: 10, whiteSpace: "pre-wrap", maxHeight: 180, overflow: "auto" }}>{upd.notes}</div>}
           {upd.note && <div className="small muted" style={{ marginTop: 8 }}>{upd.note}</div>}
           <div className="row" style={{ marginTop: 12 }}>
-            {upd.can_apply && upd.available && !upd.pending_restart && <button className="btn primary" onClick={applyUpd} disabled={!!updBusy}>{updBusy === "apply" ? <div className="spinner" /> : <I.download size={15} />}Download and install</button>}
-            {upd.can_apply && upd.pending_restart && <button className="btn primary" onClick={restart}><I.refresh size={15} />Restart now</button>}
+            {upd.can_apply && upd.available && !upd.pending_restart && <button className="btn primary" onClick={applyUpd} disabled={!!updBusy}>{updBusy === "apply" ? <div className="spinner" /> : <Glyph name="drop" size={15} />}Download and install</button>}
+            {upd.can_apply && upd.pending_restart && <button className="btn primary" onClick={restart}><Glyph name="sync" size={15} />Restart now</button>}
             {upd.can_apply && <button className="btn ghost" onClick={rollback}>Roll back to the previous version</button>}
           </div>
         </>}
       </Card>
       <div className="grid g2" style={{ alignItems: "start" }}>
-        <Card title="NVIDIA reasoning" sub="NVIDIA API catalog (integrate.api.nvidia.com)">
+        <Card icon="chip" tone="green" title="NVIDIA reasoning" sub="NVIDIA API catalog (integrate.api.nvidia.com)" right={<span className={`badge ${s.ai_key.set ? "b-agree" : "b-pending"}`}>{s.ai_key.set ? "Key set" : "No key"}</span>}>
+          <Art name="art-chip" style={{ height: 120, objectFit: "cover", borderRadius: 14, marginBottom: 14 }} />
           <div className="field"><label>API key <b>{s.ai_key.set ? s.ai_key.masked : "not set"}</b></label>
             <div className="row"><input className="input" type="password" placeholder="nvapi-…" value={key} onChange={e => setKey(e.target.value)} /><button className="btn primary" disabled={key.length < 8} onClick={saveKey}>Save</button></div>
             <span className="hint">Stored in {s.ai_key.set ? s.ai_key.where : "Windows Credential Manager"}; never in the product folder. A key saved in NBL-AquaTwin is found automatically.</span></div>
@@ -68,11 +69,12 @@ export default function Settings() {
           </div>
           <div className="field"><label>Service URL</label><input className="input" value={ai.base_url} onChange={e => setS({ ...s, ai: { ...ai, base_url: e.target.value } })} />
             <span className="hint">Any OpenAI-compatible service works, e.g. a local Ollama at http://localhost:11434/v1 for offline use.</span></div>
-          <div className="row"><button className="btn primary" onClick={save}>Save AI settings</button><button className="btn" onClick={runTest} disabled={busy}>{busy ? <div className="spinner" /> : <I.spark size={15} />}Test connection</button></div>
-          {test && <div className="note" style={{ marginTop: 12, color: test.ok ? "var(--leaf)" : "var(--danger)" }}>{test.ok ? `Connected: ${test.model} answered in ${test.seconds} s` : test.error}</div>}
+          <div className="row"><button className="btn primary" onClick={save}>Save AI settings</button><button className="btn" onClick={runTest} disabled={busy}>{busy ? <div className="spinner" /> : <Glyph name="spark" size={15} />}Test connection</button></div>
+          {test && <div className="note" style={{ marginTop: 12, color: test.ok ? "#3DDC97" : "#F26B6B" }}>{test.ok ? `Connected: ${test.model} answered in ${test.seconds} s` : test.error}</div>}
           <div className="note small" style={{ marginTop: 12 }}>What is sent: your question and the engine results the AI asks for (tables and short document passages). Raw survey files and the full documents stay on this computer.</div>
         </Card>
-        <Card title="Engines and project folders">
+        <Card icon="layers" tone="blue" title="Engines and project folders" sub="The two engines stay separate; NBL-Intelligence reads them">
+          <Art name="art-island" style={{ height: 120, objectFit: "cover", borderRadius: 14, marginBottom: 14 }} />
           <div className="field"><label>NBL-AquaTwin folder</label><input className="input" value={s.aquatwin_root} onChange={e => setS({ ...s, aquatwin_root: e.target.value })} /></div>
           <div className="field"><label>NBL-WaterPlan folder</label><input className="input" value={s.waterplan_root} onChange={e => setS({ ...s, waterplan_root: e.target.value })} /></div>
           {Object.entries(s.project_folders).map(([k, v]: any) => (

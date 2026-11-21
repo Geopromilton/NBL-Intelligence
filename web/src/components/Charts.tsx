@@ -59,8 +59,8 @@ export function HBars({ rows, unit, max, color = "var(--aqua)" }: { rows: { labe
     <div className="grid" style={{ gap: 10 }}>
       {rows.map(r => (
         <div key={r.label}>
-          <div className="row between small"><span>{r.label}{r.sub && <span className="muted tiny"> · {r.sub}</span>}</span><b>{fmt(r.value)}{unit ? ` ${unit}` : ""}</b></div>
-          <div className="bar-track"><div className="bar-fill" style={{ width: `${Math.max(0, Math.min(100, (Math.abs(r.value || 0) / m) * 100))}%`, background: r.color || color }} /></div>
+          <div className="row between small" style={{ marginBottom: 4 }}><span style={{ color: "#E3EEF5" }}>{r.label}{r.sub && <span className="muted tiny"> · {r.sub}</span>}</span><b>{fmt(r.value)}{unit ? ` ${unit}` : ""}</b></div>
+          <div className="bar-track"><div className="bar-fill" style={{ width: `${Math.max(0, Math.min(100, (Math.abs(r.value || 0) / m) * 100))}%`, background: r.color || color, boxShadow: "0 0 10px rgba(34,211,238,.35)" }} /></div>
         </div>
       ))}
     </div>
@@ -98,6 +98,26 @@ export function YearBars({ data, unit, ref1 }: { data: { year: string; value: nu
         </g>
       ))}
       {ref1 && <g><line x1={L} x2={W} y1={y(ref1.value)} y2={y(ref1.value)} stroke="var(--ink-2)" strokeDasharray="5 4" /><text x={W - 4} y={y(ref1.value) - 5} textAnchor="end" fontSize="11" fill="var(--ink-2)">{ref1.label}</text></g>}
+    </svg>
+  );
+}
+
+/** Donut of parts with a centre label. */
+export function Donut({ parts, size = 170, center, sub }: { parts: { label: string; value: number; color: string }[]; size?: number; center: string; sub?: string }) {
+  const total = parts.reduce((a, p) => a + p.value, 0) || 1;
+  const r = 60, c = 2 * Math.PI * r;
+  let off = 0;
+  return (
+    <svg width={size} height={size} viewBox="0 0 160 160">
+      <circle cx="80" cy="80" r={r} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="20" />
+      {parts.map(p => {
+        const len = (p.value / total) * c;
+        const el = <circle key={p.label} cx="80" cy="80" r={r} fill="none" stroke={p.color} strokeWidth="20" strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-off} transform="rotate(-90 80 80)" style={{ filter: `drop-shadow(0 0 4px ${p.color})` }} />;
+        off += len;
+        return el;
+      })}
+      <text x="80" y="78" textAnchor="middle" fontSize="19" fontWeight="700" fill="#fff" fontFamily="Barlow SC, Inter">{center}</text>
+      {sub && <text x="80" y="97" textAnchor="middle" fontSize="10" fill="#9FB8CC">{sub}</text>}
     </svg>
   );
 }

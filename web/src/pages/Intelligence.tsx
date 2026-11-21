@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { api, askStream, AskEvent, Final, VIEW, RELEASES } from "../lib/api";
+import { api, askStream, AskEvent, Final, VIEW, RELEASES, BASE } from "../lib/api";
 import { useApp } from "../lib/app";
 import { fmt, toolEngine, toolLabel, unit } from "../lib/format";
 import Markdown from "../components/Markdown";
-import { Card, Prov, useLoad } from "../components/Bits";
+import { Prov, useLoad } from "../components/Bits";
+import { Glyph, IconBadge } from "../components/Glyphs";
 import { I } from "../components/Icons";
 
 interface Turn { q: string; stream?: string; events: AskEvent[]; final?: Extract<AskEvent, { type: "final" }>; live: boolean; error?: string; decided?: string; }
@@ -16,12 +17,22 @@ const SUGGEST = [
   "How many tanker trips a day will RO concentrate need at full occupancy?",
   "What field tests would most reduce uncertainty before design approval?",
 ];
+const SHORT = ["Net zero with 6 persons in a dry decade?", "Where do we drill first?", "Which recharge tier keeps most water?"];
+
+const QUICK = [
+  { id: "explore", title: "Explore", sub: "Drilling sites & survey", art: "qa-explore" },
+  { id: "plan", title: "Water Plan", sub: "Balance & utilisation", art: "qa-plan" },
+  { id: "recharge", title: "Recharge", sub: "Store rain underground", art: "qa-recharge" },
+  { id: "scenarios", title: "Scenarios", sub: "Compare & approve", art: "qa-scenarios" },
+  { id: "reports", title: "Reports", sub: "Word reports", art: "qa-reports" },
+];
 
 export default function Intelligence() {
   const { site, pendingQuestion, clearPending, health, toast, go } = useApp();
   const [q, setQ] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
   const busy = turns.some(t => t.live);
   const endRef = useRef<HTMLDivElement>(null);
   const chats = useLoad(() => api<any[]>(`/api/sites/${site}/chats`), [site, turns.length]);
@@ -29,7 +40,7 @@ export default function Intelligence() {
   const facts = useLoad(() => api<any>(`/api/sites/${site}`), [site]);
 
   useEffect(() => { if (pendingQuestion) { send(pendingQuestion); clearPending(); } }, [pendingQuestion]);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [turns]);
+  useEffect(() => { if (turns.length) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [turns]);
 
   async function send(text?: string) {
     const question = (text ?? q).trim();
@@ -64,67 +75,113 @@ export default function Intelligence() {
   }
 
   const f = facts.data?.facts || {};
+  const agree = integ.data ? integ.data.counts.agree : 0;
+  const total = integ.data ? integ.data.checks.length : 1;
+  const pulse: [string, string, any][] = [
+    ["pin", "Lease area", f.lease_area_m2 && { ...f.lease_area_m2, show: `${fmt(f.lease_area_m2.value / 10000, 2)} ha` }],
+    ["building", "Flats (planning)", f.flats],
+    ["people", "Persons per flat", f.persons_per_flat],
+    ["tank", "Reservoir (closed)", f.reservoir_m3],
+    ["rain", "Rain normal 1991-2020", f.rain_normal_mm],
+    ["warn", "Stage of development", f.stage_of_development && { ...f.stage_of_development, show: String(f.stage_of_development.value).split(" - ")[0] }],
+  ];
+
   return (
     <div className="page">
-      <div className="grid g-side" style={{ alignItems: "start" }}>
-        <div>
-          <div className="ask-hero">
-            <div className="eyebrow" style={{ color: "#6FD3F0", position: "relative" }}>NBL-Intelligence · {facts.data?.name || "Site"}</div>
-            <h1>Ask about the water on this site.</h1>
-            <p>NBL-Intelligence reasons with NVIDIA models and answers from the engines: AquaTwin for groundwater, WaterPlan for the water balance. Every number shows its source and its period.</p>
-            <div className="ask-box">
-              <textarea value={q} placeholder="e.g. What happens to reliability if borewell yield is half the placeholder?" onChange={e => setQ(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
-              <button className="btn aqua" disabled={busy || !q.trim()} onClick={() => send()}><I.send size={16} />Ask</button>
+      <div className="intel-hero">
+        <div className="bg" />
+        <div className="grid" style={{ gridTemplateColumns: "minmax(0,1fr) 330px", alignItems: "start", gap: 22 }}>
+          <div>
+            <div className="eyebrow" style={{ color: "var(--green)" }}>NBL-Intelligence —</div>
+            <h1>Ask about the <em>water</em><br />on this site.</h1>
+            <p>NBL-Intelligence reasons with NVIDIA models and answers from the engines: AquaTwin for groundwater, WaterPlan for the water balance. Every number shows where it came from.</p>
+            <div className="pills">
+              <span className="pill"><Glyph name="drill" size={15} color="#7CF0BE" />Answers from AquaTwin</span>
+              <span className="pill"><Glyph name="drop" size={15} color="#7CF0BE" />Answers from WaterPlan</span>
+              <span className="pill"><Glyph name="shield" size={15} color="#7CF0BE" />Every number sourced</span>
             </div>
-            {VIEW && <div style={{ position: "relative", marginTop: 12, fontSize: 12.5, color: "#9FD8EA" }}>Public view: try the suggested questions below (answers prepared from the engines). Live NVIDIA reasoning runs in the <a style={{ color: "#fff" }} href={RELEASES} target="_blank" rel="noreferrer">desktop app</a>.</div>}
-            {!turns.length && <div className="suggest">{SUGGEST.map(s => <button key={s} onClick={() => send(s)}>{s}</button>)}</div>}
-            {!VIEW && !health?.ai?.key_set && <div style={{ position: "relative", marginTop: 14, fontSize: 12, color: "#E2B04C" }}>No NVIDIA key yet: answers come straight from the engines (offline mode). <a style={{ color: "#6FD3F0", cursor: "pointer" }} onClick={() => go("settings")}>Add the key in Settings</a>.</div>}
+            <div className="ask-panel">
+              <div className={`ask-orb ${busy ? "live" : ""}`}><Glyph name="spark" size={34} color="#fff" stroke={1.6} /></div>
+              <div className="ask-input">
+                <textarea value={q} placeholder="e.g. What happens to reliability if the borewell yield is half the placeholder? Should we recharge at RZ-2?" onChange={e => setQ(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
+                <button className="ask-go" disabled={busy || !q.trim()} onClick={() => send()}><Glyph name="spark" size={18} color="#03222E" />Ask</button>
+              </div>
+            </div>
+            <div className="suggest">
+              <Glyph name="trend" size={16} color="#F5C451" />
+              {(more ? SUGGEST : SUGGEST.slice(0, 3)).map((s, i) => <button key={s} onClick={() => send(s)} title={s}>{more ? s : SHORT[i]}</button>)}
+              <button onClick={() => setMore(m => !m)}>{more ? "Less" : "More"} ▾</button>
+            </div>
+            {VIEW && <div className="note" style={{ marginTop: 12, maxWidth: 880 }}>Public view: the suggested questions show prepared answers from the engines. Live NVIDIA reasoning runs in the <a href={RELEASES} target="_blank" rel="noreferrer">desktop app</a>.</div>}
+            {!VIEW && !health?.ai?.key_set && <div className="note" style={{ marginTop: 12, maxWidth: 880, borderColor: "rgba(245,176,65,.45)", color: "#FFD08A" }}>No NVIDIA key yet: answers come straight from the engines (offline mode). <a style={{ cursor: "pointer" }} onClick={() => go("settings")}>Add the key in Settings</a>.</div>}
+
+            {turns.length > 0 && (
+              <div className="thread">
+                {turns.map((t, i) => <TurnView key={i} t={t} onDecide={(d, a) => decide(i, d, a)} />)}
+                <div ref={endRef} />
+              </div>
+            )}
+
+            {!turns.length && <>
+              <div className="row between" style={{ margin: "26px 0 12px" }}>
+                <div className="row"><Glyph name="grid3" size={20} color="#7CF0BE" /><b style={{ font: "700 18px var(--display)", color: "#fff" }}>Quick access</b></div>
+              </div>
+              <div className="grid g5">
+                {QUICK.map(c => (
+                  <div key={c.id} className="qa-card" onClick={() => go(c.id)}>
+                    <div className="qa-top"><b>{c.title}</b><span>{c.sub}</span></div>
+                    <span className="qa-go">›</span>
+                    <div className="qa-img" style={{ backgroundImage: `url(${BASE}art/${c.art}.webp)` }} />
+                  </div>
+                ))}
+              </div>
+              <div className="brand-band">
+                <h3>Nature-based intelligence<span>for a resilient, water-secure site</span></h3>
+                {[["drop", "Conserve water"], ["leaf", "Restore nature"], ["building", "Build resilience"], ["recycle", "Close the loop"]].map(([g, l]) => (
+                  <div key={l} className="bb-item"><IconBadge name={g} tone="green" size={40} />{l}</div>
+                ))}
+              </div>
+            </>}
           </div>
 
-          <div className="thread">
-            {turns.map((t, i) => <TurnView key={i} t={t} onDecide={(d, a) => decide(i, d, a)} onFollow={send} />)}
-            <div ref={endRef} />
-          </div>
-        </div>
-
-        <div className="grid" style={{ gap: 16 }}>
-          <Card title="Site pulse" sub={facts.data?.status}>
-            <div>
-              {[["Lease area", f.lease_area_m2], ["Flats (planning)", f.flats], ["Persons per flat", f.persons_per_flat], ["Reservoir (closed)", f.reservoir_m3], ["Rain normal 1991-2020", f.rain_normal_mm], ["Stage of development", f.stage_of_development]].map(([l, v]: any) => v && (
-                <div key={l} className="pulse-row">
-                  <span className="small muted">{l}</span>
-                  <b>{typeof v.value === "number" ? fmt(v.value) : String(v.value).split(" - ")[0]} <span className="small muted" style={{ fontFamily: "var(--font)", fontWeight: 400 }}>{unit(v.unit)}</span></b>
-                  <span />
-                  <span style={{ justifySelf: "end" }}><Prov p={v.provenance} /></span>
+          <div className="grid" style={{ gap: 16 }}>
+            <div className="side-card">
+              <h3><Glyph name="trend" size={20} color="#1F8F5F" />Site pulse<span className="live">Engines</span></h3>
+              <div className="small" style={{ color: "#4E6A80", margin: "2px 0 6px" }}>{facts.data?.name} · shared site facts</div>
+              {pulse.map(([g, l, v]) => v && (
+                <div key={l} className="pulse-row" title={`${v.source || ""}`}>
+                  <Glyph name={g} size={17} color="#2B6C8F" />
+                  <span>{l}</span>
+                  <b>{v.show ?? `${fmt(v.value)} ${unit(v.unit)}`}</b>
                 </div>
               ))}
             </div>
-          </Card>
-          <Card title="Integrity" right={<button className="btn ghost small" onClick={() => go("integrity")}>Open</button>}>
-            {integ.data ? (
-              <div className="row wrap" style={{ gap: 8 }}>
-                <span className="badge b-agree">{integ.data.counts.agree} agree</span>
-                <span className="badge b-differs">{integ.data.counts.differs} differ</span>
-                <span className="badge b-note">{integ.data.counts.note} note</span>
-              </div>) : <div className="spinner" />}
-            <div className="small muted" style={{ marginTop: 10 }}>Checks whether the registry, AquaTwin and WaterPlan hold the same site numbers.</div>
-          </Card>
-          <Card title="Conversations" right={<button className="btn ghost small" onClick={() => { setTurns([]); setChatId(null); }}>New</button>}>
-            {(chats.data || []).slice(0, 8).map(c => (
-              <div key={c.id} className="row between" style={{ padding: "7px 0", borderBottom: "1px solid var(--line)", cursor: "pointer" }} onClick={() => openChat(c.id)}>
-                <span className="small" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</span><span className="tiny muted">{c.turns}</span>
+            <div className="side-card">
+              <h3><Glyph name="shield" size={20} color="#1F8F5F" />Integrity<span className="live" style={{ background: integ.data?.counts.differs ? "#FFE7C2" : "#D3F5E4", color: integ.data?.counts.differs ? "#8A5A07" : "#1F8F5F" }}>{integ.data?.counts.differs ? `${integ.data.counts.differs} to fix` : "Agree"}</span></h3>
+              <div className="small" style={{ color: "#4E6A80", margin: "6px 0 10px" }}>Checks whether the registry, AquaTwin and WaterPlan hold the same site numbers.</div>
+              <div className="pbar"><i style={{ width: `${(agree / Math.max(total, 1)) * 100}%` }} /></div>
+              <div className="row between small" style={{ marginTop: 6, color: "#4E6A80" }}><span>{agree} of {total} agree</span><a style={{ cursor: "pointer", color: "#1670B5", fontWeight: 600 }} onClick={() => go("integrity")}>Open ›</a></div>
+            </div>
+            <div className="side-card">
+              <h3><Glyph name="book" size={20} color="#1670B5" />Conversations<span className="live" style={{ background: "#DCEBFF", color: "#1670B5", cursor: "pointer" }} onClick={() => { setTurns([]); setChatId(null); }}>New</span></h3>
+              <div style={{ marginTop: 8 }}>
+                {(chats.data || []).slice(0, 6).map(c => (
+                  <div key={c.id} className="pulse-row" style={{ gridTemplateColumns: "1fr auto", cursor: "pointer" }} onClick={() => openChat(c.id)}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</span><b style={{ color: "#4E6A80" }}>›</b>
+                  </div>
+                ))}
+                {!chats.data?.length && <div className="small" style={{ color: "#4E6A80" }}>Questions and answers are saved here.</div>}
               </div>
-            ))}
-            {!chats.data?.length && <div className="small muted">Your questions and answers are saved here.</div>}
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function TurnView({ t, onDecide, onFollow }: { t: Turn; onDecide: (d: any, approve: boolean) => void; onFollow: (q: string) => void }) {
+function TurnView({ t, onDecide }: { t: Turn; onDecide: (d: any, approve: boolean) => void }) {
   const tools = t.final?.trace?.length ? t.final.trace : t.events.filter(e => e.type === "tool").map((e: any) => ({ tool: e.tool, ok: true }));
   const status = [...t.events].reverse().find(e => e.type === "status") as any;
   const fin: Final | undefined = t.final?.final;
@@ -134,8 +191,8 @@ function TurnView({ t, onDecide, onFollow }: { t: Turn; onDecide: (d: any, appro
       <div className="a-card">
         <div className="a-head">
           <span className={`orb ${t.live ? "live" : ""}`} />
-          <b style={{ color: "var(--ink)" }}>NBL-Intelligence</b>
-          <span>{t.live ? (status?.text || "Working") + "…" : t.final ? (t.final.offline ? "offline · engines only" : t.final.model) : ""}</span>
+          <b style={{ color: "#fff" }}>NBL-Intelligence</b>
+          <span>{t.live ? (status?.text || "Working") + "…" : t.final ? (t.final.offline ? "engines only (offline)" : t.final.model) : ""}</span>
           {fin?.confidence && <span className="badge b-note" style={{ marginLeft: "auto" }}>Confidence: {fin.confidence}</span>}
         </div>
         {tools.length > 0 && (
@@ -143,7 +200,7 @@ function TurnView({ t, onDecide, onFollow }: { t: Turn; onDecide: (d: any, appro
             {tools.map((s: any, i: number) => <span key={i} className={`step ${toolEngine(s.tool)}`}><i />{toolLabel[s.tool] || s.tool}{s.ok === false ? " (failed)" : ""}</span>)}
           </div>
         )}
-        {t.error && <div className="a-body"><div className="note" style={{ color: "var(--danger)" }}>{t.error}</div></div>}
+        {t.error && <div className="a-body"><div className="note" style={{ color: "#FFB4B4" }}>{t.error}</div></div>}
         {fin && (
           <>
             <div className="a-body"><Markdown text={fin.answer} /></div>
@@ -152,7 +209,7 @@ function TurnView({ t, onDecide, onFollow }: { t: Turn; onDecide: (d: any, appro
                 {fin.numbers.slice(0, 8).map((n, i) => (
                   <div key={i} className="num-chip">
                     <span>{n.name}</span>
-                    <b>{fmt(typeof n.value === "number" ? n.value : n.value)} <small style={{ fontSize: 12 }}>{unit(n.unit)}</small></b>
+                    <b>{fmt(n.value)} <small style={{ fontSize: 12 }}>{unit(n.unit)}</small></b>
                     <span>{[n.period, n.case].filter(Boolean).join(" · ")}</span>
                     {n.provenance && <div style={{ marginTop: 4 }}><Prov p={n.provenance} /></div>}
                   </div>
@@ -161,7 +218,7 @@ function TurnView({ t, onDecide, onFollow }: { t: Turn; onDecide: (d: any, appro
             )}
             {fin.suggested_decision && (
               <div className="decision">
-                <I.gavel size={18} />
+                <IconBadge name="gavel" tone="green" size={34} />
                 <p><b>Suggested decision:</b> {fin.suggested_decision.decision}<br /><span className="small muted">{fin.suggested_decision.reason}</span></p>
                 {t.decided ? <span className={`badge b-${t.decided}`}>{t.decided}</span> : (
                   <>

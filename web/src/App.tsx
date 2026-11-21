@@ -2,6 +2,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useState } from "reac
 import { api, BASE, RELEASES, VIEW } from "./lib/api";
 import { Ctx } from "./lib/app";
 import { I } from "./components/Icons";
+import { Glyph } from "./components/Glyphs";
 import { Loading } from "./components/Bits";
 import Intelligence from "./pages/Intelligence";
 import Explore from "./pages/Explore";
@@ -16,7 +17,7 @@ import Settings from "./pages/Settings";
 
 const Twin = React.lazy(() => import("./pages/Twin"));
 
-const PAGES: { id: string; label: string; icon: keyof typeof I; group: string; view?: boolean }[] = [
+const PAGES: { id: string; label: string; icon: string; group: string; view?: boolean }[] = [
   { id: "intelligence", label: "Intelligence", icon: "spark", group: "Ask", view: true },
   { id: "twin", label: "Site twin", icon: "cube", group: "Site", view: true },
   { id: "explore", label: "Explore", icon: "drill", group: "Water cycle", view: true },
@@ -29,16 +30,6 @@ const PAGES: { id: string; label: string; icon: keyof typeof I; group: string; v
   { id: "reports", label: "Reports", icon: "doc", group: "Library" },
   { id: "settings", label: "Settings", icon: "gear", group: "System" },
 ];
-
-function useTheme(): [string, () => void] {
-  const [theme, setTheme] = useState<string>(() => {
-    let t = "";
-    try { t = localStorage.getItem("nbi-theme") || ""; } catch { /* */ }
-    return t || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-  });
-  useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("nbi-theme", theme); } catch { /* */ } }, [theme]);
-  return [theme, () => setTheme(t => (t === "dark" ? "light" : "dark"))];
-}
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode; page: string }, { err: any }> {
   state = { err: null as any };
@@ -70,7 +61,8 @@ export default function App() {
   const [integrity, setIntegrity] = useState<number>(0);
   const [welcome, setWelcome] = useState(false);
   const [update, setUpdate] = useState<any>(null);
-  const [theme, toggleTheme] = useTheme();
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => { document.documentElement.dataset.theme = "dark"; }, []);
 
   const refreshHealth = useCallback(() => { api("/api/health").then(setHealth).catch(() => setHealth(null)); }, []);
   useEffect(() => {
@@ -116,30 +108,28 @@ export default function App() {
           </div>
           <nav>
             {visible.map(p => {
-              const Ico = I[p.icon];
               const head = p.group !== lastGroup ? <div className="rail-group">{p.group}</div> : null;
               lastGroup = p.group;
               return (
                 <React.Fragment key={p.id}>
                   {head}
                   <button className={`nav ${current === p.id ? "on" : ""}`} onClick={() => go(p.id)} title={p.label}>
-                    <Ico /><span>{p.label}</span>
+                    <Glyph name={p.icon} size={19} /><span>{p.label}</span>
                     {p.id === "integrity" && integrity > 0 && <span className="count">{integrity}</span>}
                   </button>
                 </React.Fragment>
               );
             })}
           </nav>
-          <div className="rail-foot">
-            {VIEW ? <div><span className="dot off" />Public view · read-only snapshot</div> : <div><span className={`dot ${aiOn ? "" : "off"}`} />{aiOn ? "NVIDIA reasoning on" : "AI offline - engines only"}</div>}
-            <div style={{ marginTop: 4 }}>AquaTwin {health?.engines?.aquatwin?.version || "–"} · WaterPlan {health?.engines?.waterplan?.version || "–"}</div>
-            <div style={{ marginTop: 4 }}>v{health?.version || "1.1.0"}{VIEW && health?.snapshot ? ` · snapshot ${health.snapshot}` : ""}</div>
+          <div className={`rail-status ${VIEW || aiOn ? "" : "off"}`} title={`NBL-Intelligence v${health?.version || ""} · AquaTwin ${health?.engines?.aquatwin?.version || "–"} · WaterPlan ${health?.engines?.waterplan?.version || "–"}`}>
+            <svg className="nv" viewBox="0 0 30 20"><path d="M11 4.5c5.5-.6 10.4 2.6 13 5.5-2.6 3-7.5 6.1-13 5.5V13c3.6.4 6.9-1.3 8.6-3-1.7-1.7-5-3.4-8.6-3z" fill="#76B900" /><path d="M11 7c2.6-.2 4.7.9 5.9 3-1.2 2.1-3.3 3.2-5.9 3z" fill="#76B900" /><path d="M2 10c2-3.4 5.2-5.4 9-5.5v2.5C8.4 7.2 6.4 8.4 5 10c1.4 1.6 3.4 2.8 6 3v2.5C7.2 15.4 4 13.4 2 10z" fill="#76B900" /></svg>
+            <div>{VIEW ? <><b>Public view</b><small>Read-only snapshot</small></> : aiOn ? <><b>NVIDIA reasoning</b><small>{(health?.ai?.model || "").split("/").pop()}</small></> : <><b>AI offline</b><small>Engines only · add key in Settings</small></>}</div>
           </div>
         </aside>
-        <div className="main" style={{ gridTemplateRows: (update?.available || update?.pending_restart || VIEW) ? "62px auto 1fr" : "62px 1fr" }}>
-          <header className="topbar">
+        <div className="main" onScroll={e => setScrolled((e.target as HTMLElement).scrollTop > 40)}>
+          <header className={`topbar ${scrolled ? "scrolled" : ""}`}>
             <div className="site-switch">
-              <div className="pin"><I.pin size={16} /></div>
+              <div className="pin"><Glyph name="pin" size={17} color="#fff" /></div>
               <div style={{ minWidth: 0 }}>
                 <select value={site} onChange={e => setSite(e.target.value)} style={{ border: 0, background: "transparent", font: "600 15px var(--display)", padding: 0, outline: 0 }}>
                   {(sites.length ? sites : [{ id: "siddanahalli", name: "Siddanahalli" }]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -148,20 +138,18 @@ export default function App() {
               </div>
             </div>
             <div className="command" onClick={() => setPalette(true)}>
-              <I.spark size={16} /><span className="ph">Ask NBL-Intelligence or jump to a page…</span><span className="kbd">Ctrl K</span>
+              <Glyph name="search" size={18} /><span className="ph">Ask NBL-Intelligence or jump to a page…</span><span className="kbd">Ctrl + K</span>
             </div>
             <div className="top-right">
               {siteInfo?.stage && <span className="chip stage" title={siteInfo?.status}>Stage {siteInfo.stage} · pre-drilling</span>}
-              {VIEW ? <a className="chip ai" href={RELEASES} target="_blank" rel="noreferrer"><I.download size={13} />Get the app</a> : (
+              {VIEW ? <a className="chip ai" href={RELEASES} target="_blank" rel="noreferrer"><I.download size={14} />Get the Windows app</a> : (
                 <span className={`chip ai ${aiOn ? "" : "off"}`} onClick={() => go("settings")} style={{ cursor: "pointer" }}>
-                  <I.spark size={13} />{aiOn ? (health?.ai?.model || "").split("/").pop() : "Add NVIDIA key"}
+                  <Glyph name="spark" size={15} />{aiOn ? "AI reasoning on" : "Add NVIDIA key"}
                 </span>)}
-              <button className="icon-btn" title="Light / dark" onClick={toggleTheme}>{theme === "dark" ? <I.sun size={16} /> : <I.moon size={16} />}</button>
             </div>
           </header>
-          {VIEW && <div className="banner"><b>Public view</b> A read-only snapshot of the Siddanahalli results. Live AI, engine runs, reports and saving are in the NBL-Intelligence desktop app. <a className="btn" style={{ marginLeft: "auto" }} href={RELEASES} target="_blank" rel="noreferrer"><I.download size={14} />Download for Windows</a></div>}
-          {!VIEW && update?.pending_restart && <div className="banner"><b>Update ready.</b> Restart NBL-Intelligence to use version {update.latest}.<button className="btn primary" style={{ marginLeft: "auto" }} onClick={() => api("/api/update/restart", { method: "POST" }).then(() => toast("Restarting…"))}>Restart now</button></div>}
-          {!VIEW && !update?.pending_restart && update?.available && <div className="banner"><b>Version {update.latest} is available.</b> You have {update.current}.<button className="btn" style={{ marginLeft: "auto" }} onClick={() => go("settings")}>What's new</button></div>}
+          {!VIEW && update?.pending_restart && <div className="banner floating"><b>Update ready.</b> Restart NBL-Intelligence to use version {update.latest}.<button className="btn primary" style={{ marginLeft: "auto" }} onClick={() => api("/api/update/restart", { method: "POST" }).then(() => toast("Restarting…"))}>Restart now</button></div>}
+          {!VIEW && !update?.pending_restart && update?.available && <div className="banner floating"><b>Version {update.latest} is available.</b> You have {update.current}.<button className="btn" style={{ marginLeft: "auto" }} onClick={() => go("settings")}>What's new</button></div>}
           <ErrorBoundary page={current}>
             <Suspense fallback={<div className="page"><Loading text="Loading the 3D engine" /></div>}>
               {current === "intelligence" && <Intelligence />}
