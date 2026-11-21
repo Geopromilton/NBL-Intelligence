@@ -27,7 +27,7 @@ The folder `D:\NBL Water Intelligence Platform` is the editable source copy, use
 
 ### How a release is made
 
-Push to `main` builds and tests everything on GitHub (installer as a build artifact) and refreshes the website. Pushing a tag `vX.Y.Z` (matching `VERSION`) publishes a Release with the installer and the update package; installed apps then offer the update.
+Every push to `main` builds and tests everything on GitHub and refreshes the website. When the number in `VERSION` is new, the build also publishes a Release (tag `vX.Y.Z`) with the installer and the update package; installed apps then offer the update. Corrections that keep the same `VERSION` are built and tested but not offered as updates.
 
 ## Pages
 
