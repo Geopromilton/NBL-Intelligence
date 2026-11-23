@@ -36,9 +36,19 @@ jobs:
         run: |
           out=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify)
           echo "$out" | grep -q '"status":"active"' || { echo "::error::The Cloudflare API token is not valid or not active. Create a new one with the 'Edit Cloudflare Workers' template."; exit 1; }
-          acc=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID")
-          echo "$acc" | grep -q '"success":true' || { echo "::error::The token cannot open the account in CLOUDFLARE_ACCOUNT_ID. Check the Account ID (32 letters and digits from Workers & Pages) and that the token was made for that account."; exit 1; }
-          sub=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")
+          id=$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | tr -d '[:space:]')
+          [ "$id" != "$CLOUDFLARE_ACCOUNT_ID" ] && echo "::notice::Removed spaces or line breaks from CLOUDFLARE_ACCOUNT_ID."
+          list=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts?per_page=50")
+          ids=$(echo "$list" | python3 -c "import json,sys; d=json.load(sys.stdin); print(' '.join(a['id'] for a in d.get('result') or []))")
+          n=$(echo $ids | wc -w)
+          echo "The token can reach $n Cloudflare account(s)."
+          if echo " $ids " | grep -q " $id "; then echo "CLOUDFLARE_ACCOUNT_ID matches an account the token can reach.";
+          elif [ "$n" = "1" ]; then id=$ids; echo "::warning::CLOUDFLARE_ACCOUNT_ID does not match; using the only account this token can reach. You can correct the secret later.";
+          elif [ "$n" = "0" ]; then echo "::error::The token cannot reach any account. Create the token again with the 'Edit Cloudflare Workers' template and, under Account Resources, choose your account."; exit 1;
+          else echo "::error::CLOUDFLARE_ACCOUNT_ID does not match any of the $n accounts this token can reach. Copy the Account ID again from Cloudflare > Workers & Pages."; exit 1; fi
+          echo "CLOUDFLARE_ACCOUNT_ID=$id" >> "$GITHUB_ENV"
+          echo "::add-mask::$id"
+          sub=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$id/workers/subdomain")
           echo "$sub" | grep -q '"subdomain":"' || echo "::warning::No workers.dev subdomain yet. Open Cloudflare > Workers & Pages once and choose one, then run this workflow again."
           echo "Token and account OK."
       - name: Deploy the relay
