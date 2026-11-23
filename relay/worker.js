@@ -12,7 +12,7 @@
  * Variable (wrangler.toml): ALLOWED_ORIGINS  comma-separated website origins
  */
 const NVIDIA = "https://integrate.api.nvidia.com/v1/chat/completions";
-const MODELS = ["deepseek-ai/deepseek-v4.1-flash", "nvidia/nemotron-3-super-120b-a12b"];
+const MODELS = (env) => (env.MODELS || "nvidia/nemotron-3.5-super-vl-120b-a12b").split(",").map(s => s.trim()).filter(Boolean);
 const MAX_TOKENS = 4000;
 const MAX_BODY = 200_000;          // bytes of conversation sent per request
 const PER_MINUTE = 20;             // requests per visitor per minute (best effort, per relay instance)
@@ -57,11 +57,18 @@ export default {
     const url = new URL(req.url);
 
     if (url.pathname === "/health") {
-      return json({ ok: true, service: "NBL-Intelligence AI relay", key_set: !!env.NVIDIA_API_KEY, passcode_set: !!env.AI_PASSCODE, models: MODELS }, 200, h);
+      return json({ ok: true, service: "NBL-Intelligence AI relay", key_set: !!env.NVIDIA_API_KEY, passcode_set: !!env.AI_PASSCODE, models: MODELS(env) }, 200, h);
     }
     if (url.pathname === "/check" && req.method === "POST") {
       const ok = !!env.AI_PASSCODE && sameText(req.headers.get("x-nbl-passcode") || "", env.AI_PASSCODE);
       return json({ ok }, ok ? 200 : 401, h);
+    }
+    if (url.pathname === "/models" && req.method === "GET") {
+      // Models available on the NVIDIA account (team only), to pick current model names.
+      if (!env.AI_PASSCODE || !sameText(req.headers.get("x-nbl-passcode") || "", env.AI_PASSCODE)) return json({ error: "Wrong passcode." }, 401, h);
+      const r = await fetch("https://integrate.api.nvidia.com/v1/models", { headers: { "Authorization": `Bearer ${env.NVIDIA_API_KEY}` } });
+      const d = await r.json().catch(() => ({}));
+      return json({ models: (d.data || []).map(m => m.id).sort() }, r.ok ? 200 : 502, h);
     }
     if (url.pathname !== "/chat" || req.method !== "POST") return json({ error: "Not found" }, 404, h);
 
@@ -73,7 +80,7 @@ export default {
     if (raw.length > MAX_BODY) return json({ error: "Conversation too long for one request." }, 413, h);
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: "Bad request." }, 400, h); }
-    if (!MODELS.includes(body.model)) return json({ error: "Model not allowed." }, 400, h);
+    if (!MODELS(env).includes(body.model)) return json({ error: "Model not allowed." }, 400, h);
     if (!Array.isArray(body.messages) || !body.messages.length) return json({ error: "No messages." }, 400, h);
 
     const upstream = await fetch(NVIDIA, {
