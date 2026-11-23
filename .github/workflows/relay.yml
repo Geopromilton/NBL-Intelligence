@@ -11,28 +11,55 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
       - name: Check the secrets are present
         id: ready
         env:
-          T: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           K: ${{ secrets.NVIDIA_API_KEY }}
           P: ${{ secrets.AI_PASSCODE }}
         run: |
-          if [ -n "$T" ] && [ -n "$A" ] && [ -n "$K" ] && [ -n "$P" ]; then echo "ok=true" >> "$GITHUB_OUTPUT";
-          else echo "ok=false" >> "$GITHUB_OUTPUT"; echo "::notice::AI relay not deployed: add the four repository secrets first (see docs/website-ai.md)."; fi
-      - name: Deploy the relay and store its secrets
+          miss=""
+          [ -z "$CLOUDFLARE_API_TOKEN" ] && miss="$miss CLOUDFLARE_API_TOKEN"
+          [ -z "$CLOUDFLARE_ACCOUNT_ID" ] && miss="$miss CLOUDFLARE_ACCOUNT_ID"
+          [ -z "$K" ] && miss="$miss NVIDIA_API_KEY"
+          [ -z "$P" ] && miss="$miss AI_PASSCODE"
+          if [ -n "$miss" ]; then echo "ok=false" >> "$GITHUB_OUTPUT"; echo "::notice::AI relay not deployed. Missing secrets:$miss (see docs/website-ai.md)."; else echo "ok=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Check the Cloudflare token
         if: steps.ready.outputs.ok == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: relay
-          secrets: |
-            NVIDIA_API_KEY
-            AI_PASSCODE
+        working-directory: relay
+        run: |
+          out=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify)
+          echo "$out" | grep -q '"status":"active"' || { echo "::error::The Cloudflare API token is not valid or not active. Create a new one with the 'Edit Cloudflare Workers' template."; exit 1; }
+          acc=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID")
+          echo "$acc" | grep -q '"success":true' || { echo "::error::The token cannot open the account in CLOUDFLARE_ACCOUNT_ID. Check the Account ID (32 letters and digits from Workers & Pages) and that the token was made for that account."; exit 1; }
+          sub=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")
+          echo "$sub" | grep -q '"subdomain":"' || echo "::warning::No workers.dev subdomain yet. Open Cloudflare > Workers & Pages once and choose one, then run this workflow again."
+          echo "Token and account OK."
+      - name: Deploy the relay
+        if: steps.ready.outputs.ok == 'true'
+        working-directory: relay
+        run: npx --yes wrangler@4 deploy
+      - name: Store the NVIDIA key and passcode as relay secrets
+        if: steps.ready.outputs.ok == 'true'
+        working-directory: relay
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           AI_PASSCODE: ${{ secrets.AI_PASSCODE }}
+        run: |
+          printf '%s' "$NVIDIA_API_KEY" | npx --yes wrangler@4 secret put NVIDIA_API_KEY
+          printf '%s' "$AI_PASSCODE" | npx --yes wrangler@4 secret put AI_PASSCODE
+      - name: Show the relay address
+        if: steps.ready.outputs.ok == 'true'
+        run: |
+          sub=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | sed -n 's/.*"subdomain":"\([^"]*\)".*/\1/p')
+          url="https://nbl-intelligence-relay.${sub}.workers.dev"
+          echo "Relay address: $url"
+          echo "### Relay address: \`$url\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Set the repository variable AI_RELAY_URL to this address, then run the Website workflow." >> "$GITHUB_STEP_SUMMARY"
+          sleep 8; curl -s "$url/health" || true
