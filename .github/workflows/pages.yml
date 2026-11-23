@@ -26,7 +26,7 @@ jobs:
         working-directory: web
       - name: Build the public view (read-only snapshot)
         working-directory: web
-        env: { VITE_VIEW: "1" }
+        env: { VITE_VIEW: "1", VITE_AI_RELAY: "${{ vars.AI_RELAY_URL }}" }
         run: npx vite build --base=./ --outDir ../site
       - run: cp -r view/snapshot site/snapshot && touch site/.nojekyll
       - uses: actions/configure-pages@v5

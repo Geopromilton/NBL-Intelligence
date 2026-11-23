@@ -1,3 +1,5 @@
+import { askWeb, webAI } from "./webai";
+export { webAI };
 export const VIEW = import.meta.env.VITE_VIEW === "1";
 export const BASE = import.meta.env.BASE_URL || "/";
 export const RELEASES = "https://github.com/Geopromilton/NBL-Intelligence/releases/latest";
@@ -57,6 +59,10 @@ export async function askStream(site: string, body: any, onEvent: (e: AskEvent) 
   if (VIEW) {
     const demo = await fetch(`${BASE}snapshot/sites/${site}/demo_answers.json`).then(r => r.json()).catch(() => ({}));
     const hit = demo[body.question];
+    if (webAI.unlocked()) {
+      try { await askWeb(site, body.question, body.history || [], onEvent); return; }
+      catch (e: any) { if (e?.fatal || !hit) throw e; onEvent({ type: "status", text: "AI relay not reachable: showing the prepared answer" }); }
+    }
     if (!hit) throw new ViewOnlyError();
     for (const ev of hit.events || []) { onEvent(ev); await new Promise(r => setTimeout(r, 250)); }
     const text: string = hit.final.final.answer;

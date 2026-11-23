@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from nbl_intelligence import twin  # noqa: E402
+from nbl_intelligence import registry, twin  # noqa: E402
 from nbl_intelligence.ai import agent  # noqa: E402
 from nbl_intelligence.api import app  # noqa: E402
 from nbl_intelligence.engines import waterplan  # noqa: E402
@@ -53,6 +53,27 @@ def write(out: Path, rel: str, data) -> None:
     p = out / f"{rel}.json"
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(scrub(data), separators=(",", ":"), default=str), encoding="utf-8")
+
+
+# Tools the website AI can use. Their results are prepared here, so the browser
+# never needs the engines. Project documents are not published (no search_documents).
+WEB_TOOLS = ("site_brief", "drilling_sites", "borewell_checks", "admt_zones", "confidence_panel", "recharge_points",
+             "cloudburst_tiers", "modflow_scenarios", "assumption_register", "rainfall_outlook", "integrity_checks", "decisions")
+
+
+def web_ai_pack(site: str) -> dict:
+    from nbl_intelligence.ai import tools as T
+    results = {name: json.loads(json.dumps(scrub(T.call(name, site, {})), default=str)) for name in WEB_TOOLS}
+    desc = [f"- {n}({', '.join(f'{k}: {v}' for k, v in T.TOOLS[n]['params'].items()) or 'no arguments'}): {T.TOOLS[n]['description']}" for n in WEB_TOOLS]
+    desc.append("- run_water_plan(persons_per_flat: 2-6, rain_case: expected | dry | wet): NBL-WaterPlan closed-loop daily water balance over 10 years "
+                "for 141 flats, prepared for each persons-per-flat value and rain case. Returns labelled totals (demand, supply by source, unmet, "
+                "tanker, spill/net-zero, recharge, reliability). Other inputs need the desktop app.")
+    rules = agent.RULES + ("\n\nYou are running on the public NBL-Intelligence website. Project documents are not published here, "
+                           "so you cannot search them; say that the desktop app can when a question needs them.")
+    s = registry.get(site)
+    brief = {"site": s.get("name"), "location": s.get("location"), "status": s.get("status"), "concept": s.get("concept")}
+    return {"system": rules + "\n\nCurrent site: " + json.dumps(brief) + "\n\nTools:\n" + "\n".join(desc),
+            "tools": results, "prepared": date.today().isoformat()}
 
 
 def main() -> None:
@@ -93,6 +114,7 @@ def main() -> None:
             "_Prepared answer for the public view: numbers straight from the engines. The desktop app adds live NVIDIA reasoning._")
         demo[q] = {"events": [e for e in events if e["type"] in ("tool", "tool_result")], "final": fin}
     write(out, f"sites/{site}/demo_answers", demo)
+    write(out, f"sites/{site}/ai_tools", web_ai_pack(site))
     n = sum(1 for _ in out.rglob("*.json"))
     print(f"Snapshot written: {n} files in {out}")
 

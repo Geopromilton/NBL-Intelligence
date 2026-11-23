@@ -1,0 +1,38 @@
+name: AI relay
+
+# Deploys the Cloudflare Worker that lets the website use NVIDIA reasoning.
+# Needs repository secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, NVIDIA_API_KEY, AI_PASSCODE.
+on:
+  push:
+    branches: [main]
+    paths: ["relay/**", ".github/workflows/relay.yml"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the secrets are present
+        id: ready
+        env:
+          T: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          K: ${{ secrets.NVIDIA_API_KEY }}
+          P: ${{ secrets.AI_PASSCODE }}
+        run: |
+          if [ -n "$T" ] && [ -n "$A" ] && [ -n "$K" ] && [ -n "$P" ]; then echo "ok=true" >> "$GITHUB_OUTPUT";
+          else echo "ok=false" >> "$GITHUB_OUTPUT"; echo "::notice::AI relay not deployed: add the four repository secrets first (see docs/website-ai.md)."; fi
+      - name: Deploy the relay and store its secrets
+        if: steps.ready.outputs.ok == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: relay
+          secrets: |
+            NVIDIA_API_KEY
+            AI_PASSCODE
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          AI_PASSCODE: ${{ secrets.AI_PASSCODE }}

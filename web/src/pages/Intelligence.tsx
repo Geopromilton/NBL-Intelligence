@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { api, askStream, AskEvent, Final, VIEW, RELEASES, BASE } from "../lib/api";
+import { api, askStream, AskEvent, Final, VIEW, RELEASES, BASE, webAI } from "../lib/api";
 import { useApp } from "../lib/app";
 import { fmt, toolEngine, toolLabel, unit } from "../lib/format";
 import Markdown from "../components/Markdown";
@@ -56,7 +56,7 @@ export default function Intelligence() {
         else if (ev.type === "delta") upd(t => ({ ...t, stream: (t.stream || "") + ev.text }));
         else if (ev.type !== "done") upd(t => ({ ...t, events: [...t.events, ev] }));
       });
-    } catch (e: any) { upd(t => ({ ...t, error: VIEW ? "This public view answers the suggested questions only. Ask anything in the NBL-Intelligence desktop app." : e.message })); }
+    } catch (e: any) { upd(t => ({ ...t, error: VIEW && !webAI.unlocked() ? (webAI.configured() ? "Unlock the AI (top right) with the team passcode to ask your own questions. Without it, the suggested questions show prepared answers." : "This public view answers the suggested questions only. Ask anything in the NBL-Intelligence desktop app.") : e.message })); }
     upd(t => ({ ...t, live: false }));
   }
 
@@ -113,7 +113,7 @@ export default function Intelligence() {
               {(more ? SUGGEST : SUGGEST.slice(0, 3)).map((s, i) => <button key={s} onClick={() => send(s)} title={s}>{more ? s : SHORT[i]}</button>)}
               <button onClick={() => setMore(m => !m)}>{more ? "Less" : "More"} ▾</button>
             </div>
-            {VIEW && <div className="note" style={{ marginTop: 12, maxWidth: 880 }}>Public view: the suggested questions show prepared answers from the engines. Live NVIDIA reasoning runs in the <a href={RELEASES} target="_blank" rel="noreferrer">desktop app</a>.</div>}
+            {VIEW && !webAI.unlocked() && <div className="note" style={{ marginTop: 12, maxWidth: 880 }}>Public view: the suggested questions show prepared answers from the engines. {webAI.configured() ? <>Team members can unlock live NVIDIA reasoning with the passcode (<b>Unlock AI</b>, top right).</> : <>Live NVIDIA reasoning runs in the <a href={RELEASES} target="_blank" rel="noreferrer">desktop app</a>.</>}</div>}
             {!VIEW && !health?.ai?.key_set && <div className="note" style={{ marginTop: 12, maxWidth: 880, borderColor: "rgba(245,176,65,.45)", color: "#FFD08A" }}>No NVIDIA key yet: answers come straight from the engines (offline mode). <a style={{ cursor: "pointer" }} onClick={() => go("settings")}>Add the key in Settings</a>.</div>}
 
             {turns.length > 0 && (
