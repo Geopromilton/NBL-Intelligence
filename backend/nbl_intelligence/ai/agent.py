@@ -72,11 +72,39 @@ def _escape_in_strings(t: str) -> str:
     return "".join(out)
 
 
+def _first_object(t: str) -> str | None:
+    """The first complete {...} object in the text (string-aware), ignoring anything after it."""
+    start = t.find("{")
+    if start < 0:
+        return None
+    depth, in_str, esc = 0, False, False
+    for i in range(start, len(t)):
+        ch = t[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return t[start:i + 1]
+    return None
+
+
 def parse(text: str) -> dict[str, Any] | None:
     t = text.strip()
     t = re.sub(r"^```(?:json)?\s*|\s*```$", "", t)
     block = (_JSON.findall(t) or [None])[0]
-    for cand in (t, block, block and _escape_in_strings(block)):
+    first = _first_object(t)
+    for cand in (t, block, block and _escape_in_strings(block), first, first and _escape_in_strings(first)):
         if not cand:
             continue
         try:
@@ -211,7 +239,7 @@ def run(site: str, question: str, history: list[dict[str, str]] | None = None) -
                 msgs.append({"role": "assistant", "content": text[:3000]})
                 msgs.append({"role": "user", "content": "That reply was not one valid JSON object. Reply again with exactly one JSON object: a tool call or the final answer."})
                 continue
-            yield _final({"answer": text, "confidence": "low"}, trace, model)
+            yield _final({"answer": partial_answer(text) or text, "confidence": "low"}, trace, model)
             return
         if "final" in obj:
             yield _final(obj["final"] if isinstance(obj["final"], dict) else {"answer": str(obj["final"])}, trace, model)

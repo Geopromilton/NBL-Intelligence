@@ -245,3 +245,9 @@ def test_parse_tolerates_raw_line_breaks_in_answer():
     from nbl_intelligence.ai import agent
     obj = agent.parse('{"final": {"answer": "Line one\nLine two", "confidence": "high"}}')
     assert obj["final"]["answer"] == "Line one\nLine two"
+
+
+def test_parse_ignores_extra_closing_brace():
+    from nbl_intelligence.ai import agent
+    obj = agent.parse('{"final": {"answer": "A\nB", "confidence": "low"}}}')
+    assert obj["final"]["answer"] == "A\nB"

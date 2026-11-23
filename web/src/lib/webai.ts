@@ -89,10 +89,23 @@ function escapeInStrings(t: string): string {
   return out;
 }
 
+/** The first complete {...} object in the text (string-aware), ignoring anything after it. */
+function firstObject(t: string): string | undefined {
+  const start = t.indexOf("{"); if (start < 0) return undefined;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < t.length; i++) {
+    const ch = t[i];
+    if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
+    if (ch === '"') inStr = true; else if (ch === "{") depth++; else if (ch === "}" && --depth === 0) return t.slice(start, i + 1);
+  }
+  return undefined;
+}
+
 function parse(text: string): any | null {
   const t = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
   const block = (t.match(/\{[\s\S]*\}/) || [])[0];
-  for (const cand of [t, block, block && escapeInStrings(block)]) {
+  const first = firstObject(t);
+  for (const cand of [t, block, block && escapeInStrings(block), first, first && escapeInStrings(first)]) {
     if (!cand) continue;
     try { const o = JSON.parse(cand); if (o && typeof o === "object") return o; } catch { /* next */ }
   }
@@ -213,7 +226,7 @@ export async function askWeb(site: string, question: string, history: { role: st
         msgs.push({ role: "user", content: "That reply was not one valid JSON object. Reply again with exactly one JSON object: a tool call or the final answer." });
         continue;
       }
-      onEvent(finalEvent({ answer: text, confidence: "low" }, trace, model)); return;
+      onEvent(finalEvent({ answer: partialAnswer(text) || text, confidence: "low" }, trace, model)); return;
     }
     if ("final" in obj) { onEvent(finalEvent(typeof obj.final === "object" ? obj.final : { answer: String(obj.final) }, trace, model)); return; }
     const name = obj.tool;
