@@ -15,7 +15,7 @@ One-time setup, about 15 minutes:
    - `NVIDIA_API_KEY`: your NVIDIA key (`nvapi-…`)
    - `AI_PASSCODE`: a passcode you choose for the team
 5. **Deploy the relay.** Repository → Actions → **AI relay** → Run workflow. When it is green, the relay is at `https://nbl-intelligence-relay.<subdomain>.workers.dev`. Open `…/health` in a browser: it should say `"key_set":true,"passcode_set":true`.
-6. **Tell the website.** Settings → Secrets and variables → Actions → **Variables** tab → New variable `AI_RELAY_URL` = the relay address from step 5.
+6. **Tell the website** (only if the address differs from `https://nbl-intelligence-relay.geopromilton.workers.dev`, which is built in). Settings → Secrets and variables → Actions → **Variables** tab → New variable `AI_RELAY_URL` = the relay address from step 5.
 7. **Rebuild the website.** Actions → **Website** → Run workflow.
 8. **Use it.** Open the website → **Unlock AI** (top right) → type the passcode. That browser remembers it.
 

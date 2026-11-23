@@ -54,7 +54,7 @@ jobs:
       - name: Deploy the relay
         if: steps.ready.outputs.ok == 'true'
         working-directory: relay
-        run: npx --yes wrangler@4 deploy
+        run: npx --yes wrangler@4 deploy 2>&1 | tee /tmp/deploy.log
       - name: Store the NVIDIA key and passcode as relay secrets
         if: steps.ready.outputs.ok == 'true'
         working-directory: relay
@@ -67,8 +67,7 @@ jobs:
       - name: Show the relay address
         if: steps.ready.outputs.ok == 'true'
         run: |
-          sub=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | sed -n 's/.*"subdomain":"\([^"]*\)".*/\1/p')
-          url="https://nbl-intelligence-relay.${sub}.workers.dev"
+          url=$(grep -o 'https://[^ ]*workers.dev' /tmp/deploy.log | head -1)
           echo "Relay address: $url"
           echo "### Relay address: \`$url\`" >> "$GITHUB_STEP_SUMMARY"
           echo "Set the repository variable AI_RELAY_URL to this address, then run the Website workflow." >> "$GITHUB_STEP_SUMMARY"
