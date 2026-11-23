@@ -12,8 +12,8 @@
  * Variable (wrangler.toml): ALLOWED_ORIGINS  comma-separated website origins
  */
 const NVIDIA = "https://integrate.api.nvidia.com/v1/chat/completions";
-const MODELS = (env) => (env.MODELS || "nvidia/nemotron-3.5-super-vl-120b-a12b").split(",").map(s => s.trim()).filter(Boolean);
-const MAX_TOKENS = 4000;
+const MODELS = (env) => (env.MODELS || "nvidia/nemotron-3.5-super-vl-120b-a12b,nvidia/nemotron-3.5-lightning-30b-a3b").split(",").map(s => s.trim()).filter(Boolean);
+const MAX_TOKENS = 16000;          // reasoning (deep think) needs room before the answer
 const MAX_BODY = 200_000;          // bytes of conversation sent per request
 const PER_MINUTE = 20;             // requests per visitor per minute (best effort, per relay instance)
 const hits = new Map();
@@ -92,6 +92,8 @@ export default {
         temperature: Math.min(1, Math.max(0, Number(body.temperature ?? 0.2))),
         max_tokens: Math.min(MAX_TOKENS, Number(body.max_tokens || MAX_TOKENS)),
         stream: true,
+        // deep think: Nemotron reasoning switch (only this flag is passed through)
+        ...(typeof body.thinking === "boolean" ? { chat_template_kwargs: { enable_thinking: body.thinking } } : {}),
       }),
     });
     if (!upstream.ok) {
