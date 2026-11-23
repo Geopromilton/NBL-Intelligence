@@ -135,6 +135,9 @@ def _step(msgs: list[dict[str, str]]):
                 return r["text"], model
             for piece in nvidia.chat_stream(msgs, model=model):
                 started = True
+                if isinstance(piece, nvidia.Thought):
+                    yield {"type": "thinking", "text": str(piece)}
+                    continue
                 buf += piece
                 ans = partial_answer(buf)
                 if ans is not None and len(ans) > sent:

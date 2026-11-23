@@ -6,7 +6,7 @@
 import type { AskEvent, Final } from "./api";
 
 const BUILT_RELAY = (import.meta.env.VITE_AI_RELAY as string | undefined) || "";
-const MODELS = ["deepseek-ai/deepseek-v4.1-flash", "nvidia/nemotron-3-super-120b-a12b"];
+const MODELS = ["nvidia/nemotron-3.5-super-vl-120b-a12b", "nvidia/nemotron-3.5-lightning-30b-a3b"];
 const MAX_STEPS = 6;
 const K_PASS = "nbi-ai-passcode", K_RELAY = "nbi-ai-relay";
 const BASE = import.meta.env.BASE_URL || "/";
@@ -117,14 +117,14 @@ function clean(text: string) {
 // ---------------------------------------------------------------- one model turn, streamed
 class RelayError extends Error { constructor(msg: string, public fatal = false) { super(msg); } }
 
-async function step(msgs: { role: string; content: string }[], onDelta: (t: string) => void): Promise<{ text: string; model: string }> {
+async function step(msgs: { role: string; content: string }[], onDelta: (t: string) => void, onThink: (t: string) => void): Promise<{ text: string; model: string }> {
   const errors: string[] = [];
   for (const model of MODELS) {
     let r: Response;
     try {
       r = await fetch(`${webAI.relay()}/chat`, {
         method: "POST", headers: { "Content-Type": "application/json", "x-nbl-passcode": store.get(K_PASS) },
-        body: JSON.stringify({ model, messages: msgs, temperature: 0.2, max_tokens: 4000, stream: true }),
+        body: JSON.stringify({ model, messages: msgs, temperature: 0.2, max_tokens: 16000, stream: true, thinking: true }),
       });
     } catch { errors.push(`${model}: relay not reachable`); continue; }
     if (r.status === 401) { webAI.lock(); throw new RelayError("The AI passcode was not accepted. Unlock the AI again with the current passcode.", true); }
@@ -143,9 +143,14 @@ async function step(msgs: { role: string; content: string }[], onDelta: (t: stri
         const data = line.slice(5).trim();
         if (data === "[DONE]") continue;
         let piece = "";
-        try { piece = JSON.parse(data).choices?.[0]?.delta?.content || ""; } catch { continue; }
+        try {
+          const d = JSON.parse(data).choices?.[0]?.delta || {};
+          const th = d.reasoning_content || d.reasoning || "";
+          if (th) onThink(th);
+          piece = d.content || "";
+        } catch { continue; }
         while (piece) {
-          if (inThink) { const e = piece.indexOf("</think>"); if (e < 0) piece = ""; else { piece = piece.slice(e + 8); inThink = false; } }
+          if (inThink) { const e = piece.indexOf("</think>"); if (e < 0) { onThink(piece); piece = ""; } else { onThink(piece.slice(0, e)); piece = piece.slice(e + 8); inThink = false; } }
           else { const s = piece.indexOf("<think>"); if (s < 0) { buf += piece; piece = ""; } else { buf += piece.slice(0, s); piece = piece.slice(s + 7); inThink = true; } }
         }
         const ans = partialAnswer(buf);
@@ -181,7 +186,7 @@ export async function askWeb(site: string, question: string, history: { role: st
   onEvent({ type: "status", text: "Reasoning" });
   for (let s = 0; s <= MAX_STEPS; s++) {
     if (s === MAX_STEPS) msgs.push({ role: "user", content: "Give the final JSON answer now, using only the tool results above." });
-    const { text, model } = await step(msgs, t => onEvent({ type: "delta", text: t }));
+    const { text, model } = await step(msgs, t => onEvent({ type: "delta", text: t }), t => onEvent({ type: "thinking", text: t }));
     const obj = parse(text);
     if (!obj) {
       if (!repaired && (text.includes("{") || s === 0)) {

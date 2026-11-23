@@ -62,6 +62,7 @@ export default function Settings() {
               : <input className="input" value={ai.fallback_model} onChange={e => setS({ ...s, ai: { ...ai, fallback_model: e.target.value } })} />}
             <span className="hint">Used automatically when the main model does not answer.</span></div>
           <label className="toggle"><input type="checkbox" checked={ai.stream !== false} onChange={e => setS({ ...s, ai: { ...ai, stream: e.target.checked } })} />Show answers word by word as they are written</label>
+          <label className="toggle"><input type="checkbox" checked={ai.thinking !== false} onChange={e => setS({ ...s, ai: { ...ai, thinking: e.target.checked } })} />Deep think: the model reasons step by step before answering (slower, more careful)</label>
           <div className="grid g3" style={{ gap: 10 }}>
             <div className="field"><label>Timeout s</label><input className="input" type="number" value={ai.timeout_s} onChange={e => setS({ ...s, ai: { ...ai, timeout_s: +e.target.value } })} /></div>
             <div className="field"><label>Max steps</label><input className="input" type="number" value={ai.max_steps} onChange={e => setS({ ...s, ai: { ...ai, max_steps: +e.target.value } })} /></div>

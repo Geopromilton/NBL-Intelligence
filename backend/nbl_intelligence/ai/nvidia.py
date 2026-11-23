@@ -106,7 +106,9 @@ def _request(model: str | None, messages: list[dict[str, str]], stream: bool, ma
         raise AIError("No NVIDIA API key is set. Add it in Settings.")
     url = cfg["base_url"].rstrip("/") + "/chat/completions"
     body = {"model": model or cfg["model"], "messages": messages, "temperature": cfg.get("temperature", 0.2),
-            "max_tokens": max_tokens or cfg.get("max_tokens", 4000), "stream": stream}
+            "max_tokens": max_tokens or cfg.get("max_tokens", 16000), "stream": stream}
+    if "thinking" in cfg and "nemotron" in str(body["model"]):
+        body["chat_template_kwargs"] = {"enable_thinking": bool(cfg.get("thinking"))}
     headers = {"Authorization": f"Bearer {key}"} if key else {}
     return url, body, headers, float(cfg.get("timeout_s", 60))
 
@@ -125,8 +127,13 @@ def chat(messages: list[dict[str, str]], model: str | None = None, max_tokens: i
     return {"text": text, "model": body["model"], "seconds": round(time.time() - t0, 1)}
 
 
+class Thought(str):
+    """A piece of the model's reasoning (deep think), kept apart from the answer."""
+
+
 def chat_stream(messages: list[dict[str, str]], model: str | None = None) -> Iterator[str]:
-    """Yield pieces of the reply as they arrive (reasoning/<think> text is skipped)."""
+    """Yield pieces of the reply as they arrive. Reasoning (reasoning_content or <think> text)
+    is yielded as Thought pieces so callers can show it but keep it out of the answer."""
     url, body, headers, timeout = _request(model, messages, True)
     in_think = False
     try:
@@ -144,13 +151,18 @@ def chat_stream(messages: list[dict[str, str]], model: str | None = None) -> Ite
                     delta = json.loads(data)["choices"][0].get("delta") or {}
                 except (json.JSONDecodeError, KeyError, IndexError):
                     continue
+                thought = delta.get("reasoning_content") or delta.get("reasoning") or ""
+                if thought:
+                    yield Thought(thought)
                 piece = delta.get("content") or ""
                 while piece:
                     if in_think:
                         end = piece.find("</think>")
                         if end < 0:
+                            yield Thought(piece)
                             piece = ""
                         else:
+                            yield Thought(piece[:end])
                             piece, in_think = piece[end + 8:], False
                     else:
                         start = piece.find("<think>")
@@ -197,7 +209,7 @@ def test_connection() -> dict[str, Any]:
     for model in models_to_try():
         try:
             t0 = time.time()
-            text = "".join(chat_stream([{"role": "user", "content": "Reply with the single word: ready"}], model=model))
+            text = "".join(p for p in chat_stream([{"role": "user", "content": "Reply with the single word: ready"}], model=model) if not isinstance(p, Thought))
             return {"ok": True, "model": model, "seconds": round(time.time() - t0, 1), "reply": text.strip()[:80], "streaming": True}
         except AIError as e:
             errors.append(f"{model}: {e}")

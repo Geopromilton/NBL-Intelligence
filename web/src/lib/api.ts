@@ -43,6 +43,7 @@ export type AskEvent =
   | { type: "tool"; tool: string; args: any; why?: string; model?: string }
   | { type: "tool_result"; tool: string; ok: boolean; sources?: string[]; error?: string }
   | { type: "delta"; text: string }
+  | { type: "thinking"; text: string }
   | { type: "final"; id: string; final: Final; trace: any[]; model: string; offline: boolean; chat_id?: string; at: string }
   | { type: "done" };
 

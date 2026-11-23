@@ -52,15 +52,19 @@ DEFAULTS: dict[str, Any] = {
     "welcome_done": False,
     "ai": {
         "base_url": "https://integrate.api.nvidia.com/v1",
-        "model": "deepseek-ai/deepseek-v4.1-flash",
-        "fallback_model": "nvidia/nemotron-3-super-120b-a12b",
-        "timeout_s": 60,
+        "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+        "fallback_model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+        "thinking": True,           # deep think: the model reasons before it answers
+        "timeout_s": 120,
         "temperature": 0.2,
-        "max_tokens": 4000,
+        "max_tokens": 16000,
         "max_steps": 6,
         "stream": True,
     },
 }
+
+# Models NVIDIA has retired: replaced by the current defaults when settings load.
+RETIRED_MODELS = {"deepseek-ai/deepseek-v4.1-flash", "nvidia/nemotron-3-super-120b-a12b"}
 
 _ENV = {"aquatwin_root": "NBL_AQUATWIN_ROOT", "waterplan_root": "NBL_WATERPLAN_ROOT", "sites_root": "NBL_INTELLIGENCE_SITES"}
 
@@ -86,6 +90,14 @@ def load() -> dict[str, Any]:
         data["project_folders"] = {**data["project_folders"], "siddanahalli": os.environ["NBL_SIDDANAHALLI_ROOT"]}
     if os.environ.get("NBL_INTELLIGENCE_PORT"):
         data["port"] = int(os.environ["NBL_INTELLIGENCE_PORT"])
+    ai = data["ai"]
+    for k in ("model", "fallback_model"):
+        if ai.get(k) in RETIRED_MODELS:
+            ai[k] = DEFAULTS["ai"][k]
+    if int(ai.get("max_tokens") or 0) < 8000 and ai.get("thinking", True):
+        ai["max_tokens"] = DEFAULTS["ai"]["max_tokens"]
+    if float(ai.get("timeout_s") or 0) < 120:
+        ai["timeout_s"] = DEFAULTS["ai"]["timeout_s"]
     return data
 
 

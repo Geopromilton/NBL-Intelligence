@@ -215,3 +215,27 @@ def test_launcher_swaps_pending_update(tmp_path, monkeypatch):
     assert (tmp_path / "app" / "VERSION").read_text() == "1.1.0"
     assert (tmp_path / "app_previous" / "VERSION").read_text() == "1.0.0"
     assert not (tmp_path / "app_pending").exists()
+
+
+def test_retired_models_replaced_and_thinking_streamed(monkeypatch, tmp_path):
+    from nbl_intelligence import settings
+    from nbl_intelligence.ai import agent, nvidia
+    f = tmp_path / "settings.json"
+    f.write_text('{"ai": {"model": "deepseek-ai/deepseek-v4.1-flash", "max_tokens": 4000}}', encoding="utf-8")
+    monkeypatch.setattr(settings, "SETTINGS_FILE", f)
+    ai = settings.load()["ai"]
+    assert ai["model"] == "nvidia/nemotron-3.5-super-vl-120b-a12b" and ai["max_tokens"] >= 8000 and ai["thinking"] is True
+
+    def fake_stream(msgs, model=None):
+        yield nvidia.Thought("Check the plan first.")
+        yield '{"final": {"answer": "Net zero holds."}}'
+    monkeypatch.setattr(nvidia, "chat_stream", fake_stream)
+    gen = agent._step([{"role": "user", "content": "x"}])
+    events = []
+    try:
+        while True:
+            events.append(next(gen))
+    except StopIteration as stop:
+        text, model = stop.value
+    assert {"type": "thinking", "text": "Check the plan first."} in events
+    assert "Net zero holds." in text and "Check the plan" not in text

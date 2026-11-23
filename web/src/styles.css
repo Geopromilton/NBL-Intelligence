@@ -347,3 +347,8 @@ mark{background:#F5C451;color:#2A1C00;border-radius:3px;padding:0 2px}
 @media (max-width:1200px){.shell{grid-template-columns:76px 1fr}.rail .brand div,.rail .nav span,.rail-group,.rail-status div,.rail .nav .count{display:none}.rail .nav{justify-content:center;padding:0}.rail .brand{justify-content:center;padding:2px 0 18px}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g-side{grid-template-columns:1fr}.command{max-width:340px}.site-switch small{display:none}.intel-hero h1{font-size:42px}}
 @media (max-width:900px){.g2,.g3,.g5{grid-template-columns:1fr}.chip.stage{display:none}.hero h1{font-size:32px}}
 .banner.floating{position:fixed;left:256px;bottom:22px;z-index:40;max-width:620px;margin:0;background:linear-gradient(90deg,#0E3A58,#0A2C44);box-shadow:var(--shadow-l)}
+
+.thinking{margin:10px 18px 0;border:1px dashed rgba(167,139,250,.45);border-radius:12px;background:rgba(40,24,80,.22)}
+.think-h{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;background:transparent;border:0;color:#D9CCFF;font:600 13px var(--font);cursor:pointer;text-align:left}
+.think-h .tiny{margin-left:auto}
+.think-b{max-height:220px;overflow:auto;padding:0 14px 12px;white-space:pre-wrap;font-size:12.5px;line-height:1.55;color:#BFB3E6}

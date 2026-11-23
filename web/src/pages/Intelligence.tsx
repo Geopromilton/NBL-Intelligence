@@ -7,7 +7,7 @@ import { Prov, useLoad } from "../components/Bits";
 import { Glyph, IconBadge } from "../components/Glyphs";
 import { I } from "../components/Icons";
 
-interface Turn { q: string; stream?: string; events: AskEvent[]; final?: Extract<AskEvent, { type: "final" }>; live: boolean; error?: string; decided?: string; }
+interface Turn { q: string; stream?: string; think?: string; events: AskEvent[]; final?: Extract<AskEvent, { type: "final" }>; live: boolean; error?: string; decided?: string; }
 
 const SUGGEST = [
   "Can the site stay net zero discharge with 6 persons per flat in a dry decade?",
@@ -54,6 +54,7 @@ export default function Intelligence() {
       await askStream(site, { question, chat_id: chatId, history }, ev => {
         if (ev.type === "final") { upd(t => ({ ...t, final: ev as any })); if ((ev as any).chat_id) setChatId((ev as any).chat_id); }
         else if (ev.type === "delta") upd(t => ({ ...t, stream: (t.stream || "") + ev.text }));
+        else if (ev.type === "thinking") upd(t => ({ ...t, think: (t.think || "") + ev.text }));
         else if (ev.type !== "done") upd(t => ({ ...t, events: [...t.events, ev] }));
       });
     } catch (e: any) { upd(t => ({ ...t, error: VIEW && !webAI.unlocked() ? (webAI.configured() ? "Unlock the AI (top right) with the team passcode to ask your own questions. Without it, the suggested questions show prepared answers." : "This public view answers the suggested questions only. Ask anything in the NBL-Intelligence desktop app.") : e.message })); }
@@ -242,9 +243,27 @@ function TurnView({ t, onDecide }: { t: Turn; onDecide: (d: any, approve: boolea
             </div>
           </>
         )}
+        {t.think && <Thinking text={t.think} live={t.live && !t.stream && !fin} />}
         {t.live && !fin && t.stream && <div className="a-body streaming"><Markdown text={t.stream} /><span className="caret" /></div>}
         {t.live && !fin && !t.stream && <div className="a-body"><div className="row small muted"><div className="spinner" />{status?.text === "Reasoning" ? "Reasoning and calling the engines…" : (status?.text || "Working") + "…"}</div></div>}
       </div>
     </>
+  );
+}
+
+/** The model's reasoning (deep think): open while it thinks, folded once the answer starts. */
+function Thinking({ text, live }: { text: string; live: boolean }) {
+  const [open, setOpen] = React.useState<boolean | null>(null);
+  const shown = open ?? live;
+  const box = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => { if (shown && live && box.current) box.current.scrollTop = box.current.scrollHeight; }, [text, shown, live]);
+  return (
+    <div className="thinking">
+      <button className="think-h" onClick={() => setOpen(!shown)}>
+        <span className={`orb ${live ? "live" : ""}`} />{live ? "Thinking deeply…" : "Reasoning (deep think)"}
+        <span className="muted tiny">{Math.round(text.split(/\s+/).length)} words · {shown ? "hide" : "show"}</span>
+      </button>
+      {shown && <div className="think-b" ref={box}>{text.trim()}</div>}
+    </div>
   );
 }
