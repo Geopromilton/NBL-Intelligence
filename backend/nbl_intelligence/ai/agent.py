@@ -53,10 +53,32 @@ def system_prompt(site: str) -> str:
 _JSON = re.compile(r"\{.*\}", re.S)
 
 
+def _escape_in_strings(t: str) -> str:
+    """Escape raw line breaks and tabs that models sometimes leave inside JSON strings."""
+    out, in_str, esc = [], False, False
+    for ch in t:
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            elif ch in "\n\r\t":
+                ch = {"\n": "\\n", "\r": "", "\t": "\\t"}[ch]
+        elif ch == '"':
+            in_str = True
+        out.append(ch)
+    return "".join(out)
+
+
 def parse(text: str) -> dict[str, Any] | None:
     t = text.strip()
     t = re.sub(r"^```(?:json)?\s*|\s*```$", "", t)
-    for cand in (t, *(_JSON.findall(t)[:1])):
+    block = (_JSON.findall(t) or [None])[0]
+    for cand in (t, block, block and _escape_in_strings(block)):
+        if not cand:
+            continue
         try:
             obj = json.loads(cand)
             if isinstance(obj, dict):
@@ -168,18 +190,22 @@ def run(site: str, question: str, history: list[dict[str, str]] | None = None) -
         return
     yield {"type": "status", "text": "Reasoning"}
     repaired = False
-    steps = int(cfg.get("max_steps", 6))
+    steps = int(cfg.get("max_steps", 10))
+    last_text, last_model = "", ""
     for step in range(steps + 1):
         if step == steps:
             msgs.append({"role": "user", "content": "Give the final JSON answer now, using only the tool results above."})
+        if step:
+            yield {"type": "thinking", "text": "\n\n"}
         try:
             text, model = yield from _step(msgs)
+            last_text, last_model = text, model
         except nvidia.AIError as e:
             yield from offline(site, question, reason=str(e), trace=trace)
             return
         obj = parse(text)
         if obj is None:
-            if not repaired and ("{" in text or step == 0):
+            if not repaired and step < steps and ("{" in text or step == 0):
                 repaired = True
                 yield {"type": "status", "text": "Asking the model to restate its reply"}
                 msgs.append({"role": "assistant", "content": text[:3000]})
@@ -208,6 +234,9 @@ def run(site: str, question: str, history: list[dict[str, str]] | None = None) -
             content = json.dumps({"error": str(e), "available_tools": list(tools.TOOLS)})
         msgs.append({"role": "assistant", "content": text[:4000]})
         msgs.append({"role": "user", "content": f"Tool result for {name}:\n{content}\n\nContinue: call another tool or give the final JSON answer."})
+    # never end without an answer: use what the model last wrote
+    yield _final({"answer": partial_answer(last_text) or last_text or "The model did not finish an answer. Please ask again.",
+                  "confidence": "low"}, trace, last_model or "unknown")
 
 
 def _final(final: dict[str, Any], trace: list[dict[str, Any]], model: str, offline_mode: bool = False) -> dict[str, Any]:

@@ -7,7 +7,7 @@ import type { AskEvent, Final } from "./api";
 
 const BUILT_RELAY = (import.meta.env.VITE_AI_RELAY as string | undefined) || "";
 const MODELS = ["nvidia/nemotron-3.5-super-vl-120b-a12b", "nvidia/nemotron-3.5-lightning-30b-a3b"];
-const MAX_STEPS = 6;
+const MAX_STEPS = 10;
 const K_PASS = "nbi-ai-passcode", K_RELAY = "nbi-ai-relay";
 const BASE = import.meta.env.BASE_URL || "/";
 
@@ -75,9 +75,24 @@ function sourcesFrom(x: any, out: Set<string> = new Set()): string[] {
 }
 
 // ---------------------------------------------------------------- reply parsing (same as the desktop agent)
+/** Escape raw line breaks and tabs that models sometimes leave inside JSON strings. */
+function escapeInStrings(t: string): string {
+  let out = "", inStr = false, esc = false;
+  for (const ch of t) {
+    if (inStr) {
+      if (esc) { esc = false; out += ch; continue; }
+      if (ch === "\\") { esc = true; out += ch; continue; }
+      if (ch === '"') { inStr = false; out += ch; continue; }
+      out += ch === "\n" ? "\\n" : ch === "\r" ? "" : ch === "\t" ? "\\t" : ch;
+    } else { if (ch === '"') inStr = true; out += ch; }
+  }
+  return out;
+}
+
 function parse(text: string): any | null {
-  let t = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
-  for (const cand of [t, (t.match(/\{[\s\S]*\}/) || [])[0]]) {
+  const t = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
+  const block = (t.match(/\{[\s\S]*\}/) || [])[0];
+  for (const cand of [t, block, block && escapeInStrings(block)]) {
     if (!cand) continue;
     try { const o = JSON.parse(cand); if (o && typeof o === "object") return o; } catch { /* next */ }
   }
@@ -182,14 +197,16 @@ export async function askWeb(site: string, question: string, history: { role: st
   for (const h of history.slice(-6)) if ((h.role === "user" || h.role === "assistant") && h.content) msgs.push({ role: h.role, content: h.content.slice(0, 3000) });
   msgs.push({ role: "user", content: question });
   const trace: any[] = [];
-  let repaired = false;
+  let repaired = false, lastText = "", lastModel = MODELS[0];
   onEvent({ type: "status", text: "Reasoning" });
   for (let s = 0; s <= MAX_STEPS; s++) {
     if (s === MAX_STEPS) msgs.push({ role: "user", content: "Give the final JSON answer now, using only the tool results above." });
+    if (s > 0) onEvent({ type: "thinking", text: "\n\n" });
     const { text, model } = await step(msgs, t => onEvent({ type: "delta", text: t }), t => onEvent({ type: "thinking", text: t }));
+    lastText = text; lastModel = model;
     const obj = parse(text);
     if (!obj) {
-      if (!repaired && (text.includes("{") || s === 0)) {
+      if (!repaired && s < MAX_STEPS && (text.includes("{") || s === 0)) {
         repaired = true;
         onEvent({ type: "status", text: "Asking the model to restate its reply" });
         msgs.push({ role: "assistant", content: text.slice(0, 3000) });
@@ -218,4 +235,6 @@ export async function askWeb(site: string, question: string, history: { role: st
     msgs.push({ role: "assistant", content: text.slice(0, 4000) });
     msgs.push({ role: "user", content: `Tool result for ${name}:\n${content}\n\nContinue: call another tool or give the final JSON answer.` });
   }
+  // never end without an answer: use what the model last wrote
+  onEvent(finalEvent({ answer: partialAnswer(lastText) || lastText || "The model did not finish an answer. Please ask again.", confidence: "low" }, trace, lastModel));
 }

@@ -239,3 +239,9 @@ def test_retired_models_replaced_and_thinking_streamed(monkeypatch, tmp_path):
         text, model = stop.value
     assert {"type": "thinking", "text": "Check the plan first."} in events
     assert "Net zero holds." in text and "Check the plan" not in text
+
+
+def test_parse_tolerates_raw_line_breaks_in_answer():
+    from nbl_intelligence.ai import agent
+    obj = agent.parse('{"final": {"answer": "Line one\nLine two", "confidence": "high"}}')
+    assert obj["final"]["answer"] == "Line one\nLine two"

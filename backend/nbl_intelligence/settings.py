@@ -58,7 +58,7 @@ DEFAULTS: dict[str, Any] = {
         "timeout_s": 120,
         "temperature": 0.2,
         "max_tokens": 16000,
-        "max_steps": 6,
+        "max_steps": 10,
         "stream": True,
     },
 }
@@ -96,6 +96,8 @@ def load() -> dict[str, Any]:
             ai[k] = DEFAULTS["ai"][k]
     if int(ai.get("max_tokens") or 0) < 8000 and ai.get("thinking", True):
         ai["max_tokens"] = DEFAULTS["ai"]["max_tokens"]
+    if int(ai.get("max_steps") or 0) < 10:
+        ai["max_steps"] = DEFAULTS["ai"]["max_steps"]
     if float(ai.get("timeout_s") or 0) < 120:
         ai["timeout_s"] = DEFAULTS["ai"]["timeout_s"]
     return data
