@@ -49,8 +49,9 @@ def run(site_id: str) -> dict[str, Any]:
     nums = [v["value"] for v in vals if isinstance(v["value"], (int, float))]
     st = "agree" if nums and max(_rel(nums[0], x) for x in nums) <= 0.01 else "differs"
     checks.append(_check("area", "Lease area", vals, st,
+                         "No action. All sources use the KMZ lease area (44,058 m2) until the DGPS survey." if st == "agree" else
                          "Use the KMZ area (44,058 m2) everywhere until the DGPS survey; update the AquaTwin Studio card (4.35 ha is the older figure).",
-                         "A 1.3 % difference changes rain on the lease by about 56 m3 per 100 mm."))
+                         "" if st == "agree" else "A 1.3 % difference changes rain on the lease by about 56 m3 per 100 mm."))
 
     # 3 people in the groundwater model vs planned people
     people = (f("flats") or 0) * (f("persons_per_flat") or 0)

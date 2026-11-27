@@ -55,7 +55,7 @@ def test_integrity_flags_known_differences():
     c = consistency.run(SITE)
     st = {x["id"]: x["status"] for x in c["checks"]}
     assert "flats" not in st                 # flat count (141) confirmed by the architect; no longer a check
-    assert st["area"] == "differs"           # AquaTwin Studio card still shows the older 4.35 ha
+    assert st["area"] == "agree"             # AquaTwin Studio card now uses the KMZ lease area (44,058 m2)
     assert st["roof"] == "agree"             # AquaTwin run SID-20261127-100657 uses 13,620 m2
     assert st["residents"] == "agree"        # and 564 residents (registers v4 / v3)
     assert st["reservoir"] == "agree"

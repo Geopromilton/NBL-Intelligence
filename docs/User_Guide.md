@@ -32,7 +32,7 @@ Move any slider; the plan re-runs in about a second. Persons per flat is adjusta
 
 ## 5. Integrity
 
-Each card lists the value held by every source and the action to take. Nothing is changed automatically. Current differences for Siddanahalli: lease area (AquaTwin Studio card uses the older 4.35 ha). The flat count (141), people and roof area now agree across the registry, WaterPlan and the AquaTwin run.
+Each card lists the value held by every source and the action to take. Nothing is changed automatically. For Siddanahalli the lease area, flat count (141), people and roof area now agree across the registry, WaterPlan and the AquaTwin run.
 
 ## 6. Reports
 
