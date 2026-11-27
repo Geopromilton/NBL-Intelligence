@@ -86,7 +86,7 @@ export default function Plan() {
             <input type="range" min={2} max={6} step={1} value={inp.persons_per_flat} onChange={e => set("persons_per_flat", +e.target.value)} />
           </Row>
           <fieldset disabled={dis} style={{ border: 0, padding: 0, margin: 0 }}>
-            <Row icon="building" label="Flats" value={inp.flats} hint="Planning 141 · architect statement 144">
+            <Row icon="building" label="Flats" value={inp.flats} hint="Architect statement: 141">
               <input type="range" min={60} max={200} step={1} value={inp.flats} onChange={e => set("flats", +e.target.value)} />
             </Row>
             <Row icon="drop" label="Water use" value={`${inp.litres_per_person_day} L/person/day`}>

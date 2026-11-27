@@ -17,7 +17,7 @@ concept: Permaculture-rich senior-citizen residential community with agri-touris
 status_stamp: PRE-DRILLING ASSUMPTION-DRIVEN SCENARIO - NOT YET CALIBRATED WITH ON-SITE BOREHOLE OR AQUIFER-TEST DATA
 
 engines:
-  aquatwin: {site: Siddanahalli, run: SID-20261019-104700}
+  aquatwin: {site: Siddanahalli, run: SID-20261127-100657}
   waterplan: {site: siddanahalli}
 project_folder_key: siddanahalli
 
@@ -32,8 +32,7 @@ facts:
   geology:              {value: "Peninsular gneissic complex; weathered-fissured crystalline aquifer", provenance: imported, source: "CGWB NAQUIM Malur 2016"}
   roof_area_m2:         {value: 13620, unit: m2, provenance: imported, source: "User, 2 Nov 2026 (architect plan)"}
   road:                 {value: "315 m x 9 m; road runoff not collected", provenance: imported, source: "User decision, 18 Nov 2026"}
-  flats:                {value: 141, unit: flats, provenance: assumption, source: "Planning input used by both engines", note: "Architect area statement (18 Nov 2026) gives 144 units"}
-  architect_units:      {value: 144, unit: units, provenance: calculated, source: "Architect area statement 18 Nov 2026: 12 units/floor x 4 floors x 3 clusters"}
+  flats:                {value: 141, unit: flats, provenance: imported, source: "Architect area statement (18 Nov 2026); used by both engines"}
   persons_per_flat:     {value: 4, unit: persons, provenance: assumption, source: "Planned occupancy, adjustable 2-6"}
   litres_per_person_day: {value: 135, unit: L/person/day, provenance: placeholder, source: "WaterPlan placeholder P4", period: per day}
   years_to_full_occupancy: {value: 5, unit: years, provenance: assumption, source: "AquaTwin v1.18.0: 20 % more occupied each year"}

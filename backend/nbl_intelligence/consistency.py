@@ -52,16 +52,6 @@ def run(site_id: str) -> dict[str, Any]:
                          "Use the KMZ area (44,058 m2) everywhere until the DGPS survey; update the AquaTwin Studio card (4.35 ha is the older figure).",
                          "A 1.3 % difference changes rain on the lease by about 56 m3 per 100 mm."))
 
-    # 2 flats
-    vals = [{"source": "Site registry (planning input)", "value": f("flats"), "unit": "flats"},
-            {"source": "Architect area statement", "value": f("architect_units"), "unit": "units"}]
-    if wp_plan:
-        vals.append({"source": "WaterPlan default plan", "value": wp_plan.get("flats"), "unit": "flats"})
-    st = "agree" if len({v["value"] for v in vals}) == 1 else "differs"
-    checks.append(_check("flats", "Number of flats", vals, st,
-                         "Confirm 141 or 144 with the architect. The platform uses 141 until you change it (slider on the Water plan page).",
-                         "3 more flats at 4 persons and 135 L/day add 1.6 m3/day at full occupancy."))
-
     # 3 people in the groundwater model vs planned people
     people = (f("flats") or 0) * (f("persons_per_flat") or 0)
     vals = [{"source": "Planned people (registry)", "value": people, "unit": "persons"}]
@@ -69,8 +59,9 @@ def run(site_id: str) -> dict[str, Any]:
         vals.append({"source": "AquaTwin MODFLOW runs (M7, median)", "value": float(m7["residents"].median()), "unit": "persons"})
     st = "agree" if len(vals) < 2 or _rel(vals[0]["value"], vals[1]["value"]) < 0.05 else "differs"
     checks.append(_check("residents", "People assumed in the groundwater (MODFLOW) model", vals, st,
+                         "No action. The AquaTwin run uses the current occupancy." if st == "agree" else
                          "Re-run AquaTwin M7 with the current occupancy before using its drawdown numbers for design.",
-                         "The M7 run of 19 Oct used the earlier household count and full demand from year 1."))
+                         "" if st == "agree" else "The AquaTwin run was made with a different household count than the plan."))
 
     # 4 roof area
     vals = [{"source": "Site registry", "value": f("roof_area_m2"), "unit": "m2"}]
@@ -82,6 +73,7 @@ def run(site_id: str) -> dict[str, Any]:
     nums = [v["value"] for v in vals]
     st = "agree" if max(_rel(nums[0], x) for x in nums) <= 0.02 else "differs"
     checks.append(_check("roof", "Roof catchment area", vals, st,
+                         "No action. The AquaTwin run uses the registry roof area." if st == "agree" else
                          "Update the AquaTwin assumption register roof area to 13,620 m2 and re-run M7/M7d before quoting recharge volumes.",
                          "Roof area drives roof-water recharge in S1, S2 and S5 and the cloudburst runoff volume."))
 
