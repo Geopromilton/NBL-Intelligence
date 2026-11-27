@@ -372,12 +372,14 @@ if (settings.WEB_DIST / "assets").exists():
     app.mount("/assets", StaticFiles(directory=settings.WEB_DIST / "assets"), name="assets")
 
 
+_NC = {"Cache-Control": "no-cache, must-revalidate"}
+
 @app.get("/{path:path}", include_in_schema=False)
 def spa(path: str):
     f = (settings.WEB_DIST / path).resolve()
     if path and f.is_file() and settings.WEB_DIST.resolve() in f.parents:
-        return FileResponse(f)
+        return FileResponse(f, headers=_NC if f.suffix == ".html" else None)
     idx = settings.WEB_DIST / "index.html"
     if idx.exists():
-        return FileResponse(idx)
+        return FileResponse(idx, headers=_NC)
     return JSONResponse({"app": APP_NAME, "note": "Web client not built. API docs at /docs"})
