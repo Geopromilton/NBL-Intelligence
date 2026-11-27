@@ -253,3 +253,11 @@ def test_parse_ignores_extra_closing_brace():
     from nbl_intelligence.ai import agent
     obj = agent.parse('{"final": {"answer": "A\nB", "confidence": "low"}}}')
     assert obj["final"]["answer"] == "A\nB"
+
+
+def test_version_files_agree():
+    """The VERSION file (release tag) and the program's own version must match, or the updater loops."""
+    from pathlib import Path
+    import nbl_intelligence
+    root = Path(__file__).resolve().parents[1]
+    assert (root / "VERSION").read_text().strip() == nbl_intelligence.__version__
