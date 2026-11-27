@@ -5,7 +5,7 @@ Two ways of running:
 * Installed (standalone Windows app built with PyInstaller): the program is
   read-only in Program Files; sites, state and settings live in
   %LOCALAPPDATA%\\NBL-Intelligence. Site registries shipped with the program are
-  copied there on first start and are never overwritten afterwards.
+  copied there on first start and refreshed (old file kept as site.yaml.bak-<version>) when the program version changes.
 
 Order of precedence: environment variables > user settings file > defaults.
 """
@@ -126,11 +126,28 @@ def sites_root() -> Path:
         return PRODUCT_ROOT / "sites"
     root = user_dir() / "sites"
     if BUNDLED_SITES.exists():
+        from . import __version__
         for src in BUNDLED_SITES.iterdir():
+            if not (src.is_dir() and (src / "site.yaml").exists()):
+                continue
             dst = root / src.name
-            if src.is_dir() and not (dst / "site.yaml").exists():
-                dst.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src / "site.yaml", dst / "site.yaml")
+            marker = dst / ".registry_version"
+            try:
+                if not (dst / "site.yaml").exists():
+                    dst.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src / "site.yaml", dst / "site.yaml")
+                    marker.write_text(__version__, encoding="utf-8")
+                elif not marker.exists() or marker.read_text(encoding="utf-8").strip() != __version__:
+                    # A new program version brings its own site registry (run in use, facts).
+                    # The old file is kept as site.yaml.bak-<version>; the cached 3D scene is
+                    # dropped so it is rebuilt from the current AquaTwin run.
+                    old = marker.read_text(encoding="utf-8").strip() if marker.exists() else "before-1.2.6"
+                    shutil.copy2(dst / "site.yaml", dst / f"site.yaml.bak-{old}")
+                    shutil.copy2(src / "site.yaml", dst / "site.yaml")
+                    (dst / "twin" / "scene.json").unlink(missing_ok=True)
+                    marker.write_text(__version__, encoding="utf-8")
+            except OSError:
+                pass
     return root
 
 

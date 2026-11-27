@@ -261,3 +261,26 @@ def test_version_files_agree():
     import nbl_intelligence
     root = Path(__file__).resolve().parents[1]
     assert (root / "VERSION").read_text().strip() == nbl_intelligence.__version__
+
+
+def test_installed_app_refreshes_site_registry(tmp_path, monkeypatch):
+    """An installed copy of site.yaml must follow the program version (old file kept, 3D cache dropped)."""
+    from nbl_intelligence import settings, __version__
+    bundled, user = tmp_path / "bundled", tmp_path / "user"
+    (bundled / "s1").mkdir(parents=True)
+    (bundled / "s1" / "site.yaml").write_text("run: NEW\n")
+    (user / "sites" / "s1" / "twin").mkdir(parents=True)
+    (user / "sites" / "s1" / "site.yaml").write_text("run: OLD\n")
+    (user / "sites" / "s1" / "twin" / "scene.json").write_text("{}")
+    monkeypatch.setattr(settings, "INSTALLED", True)
+    monkeypatch.setattr(settings, "BUNDLED_SITES", bundled)
+    monkeypatch.setattr(settings, "user_dir", lambda: user)
+    monkeypatch.setattr(settings, "load", lambda: {})
+    root = settings.sites_root()
+    assert (root / "s1" / "site.yaml").read_text() == "run: NEW\n"
+    assert (root / "s1" / "site.yaml.bak-before-1.2.6").read_text() == "run: OLD\n"
+    assert not (root / "s1" / "twin" / "scene.json").exists()
+    (root / "s1" / "site.yaml").write_text("run: EDITED\n")
+    settings.sites_root()                                   # same version: no second overwrite
+    assert (root / "s1" / "site.yaml").read_text() == "run: EDITED\n"
+    assert (root / "s1" / ".registry_version").read_text() == __version__
