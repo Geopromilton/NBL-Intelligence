@@ -352,3 +352,11 @@ mark{background:#F5C451;color:#2A1C00;border-radius:3px;padding:0 2px}
 .think-h{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;background:transparent;border:0;color:#D9CCFF;font:600 13px var(--font);cursor:pointer;text-align:left}
 .think-h .tiny{margin-left:auto}
 .think-b{max-height:220px;overflow:auto;padding:0 14px 12px;white-space:pre-wrap;font-size:12.5px;line-height:1.55;color:#BFB3E6}
+/* Chat layout: once a question is asked the answers stack above and the box is pinned at the bottom, like a normal chat. */
+.intel-hero.chat{overflow:clip;min-height:calc(100vh - 68px)}
+.intel-hero.chat .bg{opacity:.35}
+.chatcol{display:flex;flex-direction:column;min-height:calc(100vh - 150px)}
+.chatcol .thread{flex:1;margin-top:10px;align-content:start}
+.composer.dock{position:sticky;bottom:0;z-index:15;margin-top:18px;padding:22px 0 16px;background:linear-gradient(180deg,rgba(5,23,42,0),var(--bg) 26%)}
+.composer.dock .ask-panel{box-shadow:0 -10px 30px rgba(0,8,20,.45)}
+.composer.dock .ask-input textarea{min-height:44px}

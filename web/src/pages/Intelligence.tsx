@@ -89,18 +89,27 @@ export default function Intelligence() {
 
   return (
     <div className="page">
-      <div className="intel-hero">
+      <div className={`intel-hero ${turns.length ? "chat" : ""}`}>
         <div className="bg" />
         <div className="grid" style={{ gridTemplateColumns: "minmax(0,1fr) 330px", alignItems: "start", gap: 22 }}>
-          <div>
+          <div className={turns.length ? "chatcol" : ""}>
             <div className="eyebrow" style={{ color: "var(--green)" }}>NBL-Intelligence —</div>
-            <h1>Ask about the <em>water</em><br />on this site.</h1>
-            <p>NBL-Intelligence reasons with NVIDIA models and answers from the engines: AquaTwin for groundwater, WaterPlan for the water balance. Every number shows where it came from.</p>
-            <div className="pills">
-              <span className="pill"><Glyph name="drill" size={15} color="#7CF0BE" />Answers from AquaTwin</span>
-              <span className="pill"><Glyph name="drop" size={15} color="#7CF0BE" />Answers from WaterPlan</span>
-              <span className="pill"><Glyph name="shield" size={15} color="#7CF0BE" />Every number sourced</span>
-            </div>
+            {!turns.length && <>
+              <h1>Ask about the <em>water</em><br />on this site.</h1>
+              <p>NBL-Intelligence reasons with NVIDIA models and answers from the engines: AquaTwin for groundwater, WaterPlan for the water balance. Every number shows where it came from.</p>
+              <div className="pills">
+                <span className="pill"><Glyph name="drill" size={15} color="#7CF0BE" />Answers from AquaTwin</span>
+                <span className="pill"><Glyph name="drop" size={15} color="#7CF0BE" />Answers from WaterPlan</span>
+                <span className="pill"><Glyph name="shield" size={15} color="#7CF0BE" />Every number sourced</span>
+              </div>
+            </>}
+            {turns.length > 0 && (
+              <div className="thread">
+                {turns.map((t, i) => <TurnView key={i} t={t} onDecide={(d, a) => decide(i, d, a)} />)}
+                <div ref={endRef} style={{ scrollMarginBottom: 190 }} />
+              </div>
+            )}
+            <div className={`composer ${turns.length ? "dock" : ""}`}>
             <div className="ask-panel">
               <div className={`ask-orb ${busy ? "live" : ""}`}><Glyph name="spark" size={34} color="#fff" stroke={1.6} /></div>
               <div className="ask-input">
@@ -117,12 +126,7 @@ export default function Intelligence() {
             {VIEW && !webAI.unlocked() && <div className="note" style={{ marginTop: 12, maxWidth: 880 }}>Public view: the suggested questions show prepared answers from the engines. {webAI.configured() ? <>Team members can unlock live NVIDIA reasoning with the passcode (<b>Unlock AI</b>, top right).</> : <>Live NVIDIA reasoning runs in the <a href={RELEASES} target="_blank" rel="noreferrer">desktop app</a>.</>}</div>}
             {!VIEW && !health?.ai?.key_set && <div className="note" style={{ marginTop: 12, maxWidth: 880, borderColor: "rgba(245,176,65,.45)", color: "#FFD08A" }}>No NVIDIA key yet: answers come straight from the engines (offline mode). <a style={{ cursor: "pointer" }} onClick={() => go("settings")}>Add the key in Settings</a>.</div>}
 
-            {turns.length > 0 && (
-              <div className="thread">
-                {turns.map((t, i) => <TurnView key={i} t={t} onDecide={(d, a) => decide(i, d, a)} />)}
-                <div ref={endRef} />
-              </div>
-            )}
+            </div>
 
             {!turns.length && <>
               <div className="row between" style={{ margin: "26px 0 12px" }}>
